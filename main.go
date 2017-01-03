@@ -92,7 +92,7 @@ func Refresh() {
 	CopyScreen(10, 10, 5)
 
 	// debug assembly and virtual registers
-	DebugAssembly(342, 12)
+	DebugAssembly(342, 11)
 	DebugRegisters(12, 180)
 
 	// show the new frame
