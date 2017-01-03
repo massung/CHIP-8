@@ -26,8 +26,14 @@ func DebugAssembly(x, y int) {
 
 	// show the disassembled instructions
 	for i := 0;i < 32;i+=2 {
-		if Address + uint(i) == VM.PC - 2 {
-			Renderer.SetDrawColor(57, 102, 176, 255)
+		if Address + uint(i) == VM.PC {
+			if Paused {
+				Renderer.SetDrawColor(176, 32, 57, 255)
+			} else {
+				Renderer.SetDrawColor(57, 102, 176, 255)
+			}
+
+			// highlight the current instruction
 			Renderer.FillRect(&sdl.Rect{
 				X: int32(x),
 				Y: int32(y + i * 5) - 1,

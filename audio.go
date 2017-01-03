@@ -14,10 +14,10 @@ import (
 ///
 func InitAudio() {
 	spec := &sdl.AudioSpec {
-		Freq: 44050,
+		Freq: 2500,
 		Format: sdl.AUDIO_F32,
 		Channels: 1,
-		Samples: 16,
+		Samples: 32,
 		Callback: sdl.AudioCallback(C.Tone),
 	}
 
@@ -48,7 +48,7 @@ func Tone(_ unsafe.Pointer, stream *C.byte, length C.int) {
 	// fill in the data with a constant tone
 	for i := 0; i < n; i+=4 {
 		if now < VM.ST {
-			buf[i] = 2.0
+			buf[i] = 1.0
 		} else {
 			buf[i] = 0.0
 		}

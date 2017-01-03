@@ -65,13 +65,16 @@ type CHIP_8 struct {
 	Keys [16]bool
 }
 
-/// Load a ROM into the memory of a CHIP-8 virtual machine.
+/// Load a ROM and return a new CHIP-8 virtual machine.
 ///
-func (vm *CHIP_8) Load(file string) {
+func Load(file string) *CHIP_8 {
 	program, err := ioutil.ReadFile(file)
 	if err != nil {
 		panic(err)
 	}
+
+	// create the new CHIP-8 virtual machine
+	vm := &CHIP_8{}
 
 	// copy the RCA 1802 512 byte ROM into the CHIP-8
 	for i, b := range rca_1802 {
@@ -85,6 +88,8 @@ func (vm *CHIP_8) Load(file string) {
 
 	// reset the VM memory
 	vm.Reset()
+
+	return vm
 }
 
 /// Reset the CHIP-8 virtual machine memory.

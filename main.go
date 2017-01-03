@@ -16,7 +16,7 @@ var (
 
 	/// The SDL Window and Renderer.
 	///
-	Window   *sdl.Window
+	Window *sdl.Window
 	Renderer *sdl.Renderer
 )
 
@@ -30,6 +30,9 @@ func main() {
 	// seed the random number generator
 	rand.Seed(time.Now().UTC().UnixNano())
 
+	// create a new CHIP-8 virtual machine, must happen early!
+	VM = chip8.Load("games/BRIX")
+
 	// initialize SDL or panic
 	if err = sdl.Init(sdl.INIT_VIDEO | sdl.INIT_AUDIO); err != nil {
 		panic(err)
@@ -42,7 +45,7 @@ func main() {
 	}
 
 	// set the icon
-	if icon, err := sdl.LoadBMP("chip_8.bmp"); err == nil {
+	if icon, err := sdl.LoadBMP("data/chip_8.bmp"); err == nil {
 		mask := sdl.MapRGB(icon.Format, 255, 0, 255)
 
 		// create the mask color key and set the icon
@@ -53,19 +56,13 @@ func main() {
 	// set the title
 	Window.SetTitle("CHIP-8")
 
-	// create a new CHIP-8 virtual machine
-	VM = &chip8.CHIP_8{}
-
-	// load a ROM file
-	VM.Load("games/RUSH_HOUR")
-
 	// initialize subsystems
 	InitScreen()
 	InitAudio()
 	InitFont()
 
 	// set processor speed and refresh rate
-	clock := time.NewTicker(time.Millisecond * 4)
+	clock := time.NewTicker(time.Millisecond * 3)
 	video := time.NewTicker(time.Second / 60)
 
 	// loop until window closed or user quit

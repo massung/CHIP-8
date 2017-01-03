@@ -16,7 +16,7 @@ func InitFont() {
 	var surface *sdl.Surface
 	var err error
 
-	if surface, err = sdl.LoadBMP("font.bmp"); err != nil {
+	if surface, err = sdl.LoadBMP("data/font.bmp"); err != nil {
 		panic(err)
 	}
 
