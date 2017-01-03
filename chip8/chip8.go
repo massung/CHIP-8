@@ -65,12 +65,11 @@ type CHIP_8 struct {
 	Keys [16]bool
 }
 
-/// Load a ROM and return a new CHIP-8 virtual machine.
+/// Load a ROM from a byte array and return a new CHIP-8 virtual machine.
 ///
-func Load(file string) *CHIP_8 {
-	program, err := ioutil.ReadFile(file)
-	if err != nil {
-		panic(err)
+func LoadROM(program []byte) *CHIP_8 {
+	if len(program) > 0x1000 - 0x200 {
+		panic("Program too large to fit in memory!")
 	}
 
 	// create the new CHIP-8 virtual machine
@@ -90,6 +89,17 @@ func Load(file string) *CHIP_8 {
 	vm.Reset()
 
 	return vm
+}
+
+/// Load a ROM file and return a new CHIP-8 virtual machine.
+///
+func LoadFile(file string) *CHIP_8 {
+	program, err := ioutil.ReadFile(file)
+	if err != nil {
+		panic(err)
+	}
+
+	return LoadROM(program)
 }
 
 /// Reset the CHIP-8 virtual machine memory.

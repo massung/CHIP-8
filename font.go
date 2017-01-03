@@ -45,7 +45,7 @@ func DrawText(s string, x, y int) {
 
 	// loop over all the characters in the string
 	for _, c := range s {
-		if c > 32 && c < 94 {
+		if c > 32 && c < 127 {
 			src.X = (c - 33) * 6
 
 			// draw the character to the renderer

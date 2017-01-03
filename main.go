@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"math/rand"
 	"runtime"
 	"time"
@@ -10,6 +12,14 @@ import (
 )
 
 var (
+	/// The file to load as a ROM or assemble.
+	///
+	File string
+
+	/// True if the File is assembly code.
+	///
+	Assemble bool
+
 	/// The CHIP-8 virtual machine.
 	///
 	VM *chip8.CHIP_8
@@ -30,8 +40,12 @@ func main() {
 	// seed the random number generator
 	rand.Seed(time.Now().UTC().UnixNano())
 
-	// create a new CHIP-8 virtual machine, must happen early!
-	VM = chip8.Load("games/BRIX")
+	// parse the command line
+	flag.BoolVar(&Assemble, "a", false, "Assemble file before loading.")
+	flag.Parse()
+
+	// get the file name of the ROM to load
+	File = flag.Arg(0)
 
 	// initialize SDL or panic
 	if err = sdl.Init(sdl.INIT_VIDEO | sdl.INIT_AUDIO); err != nil {
@@ -57,13 +71,49 @@ func main() {
 	Window.SetTitle("CHIP-8")
 
 	// initialize subsystems
+	InitDebug()
+
+	// show copyright information
+	fmt.Println("CHIP-8, Copyright 2017 by Jeffrey Massung")
+	fmt.Println("All rights reserved")
+	fmt.Println("")
+
+	if File == "" {
+		fmt.Println("Loading PONG...")
+	} else {
+		fmt.Print("Loading ", File, "... ")
+	}
+
+	// create a new CHIP-8 virtual machine, load the ROM..
+	if File == "" {
+		VM = chip8.LoadROM(chip8.Pong)
+	} else {
+		if Assemble {
+			fmt.Println("Assembling...")
+
+			chip8.Assemble(File)
+
+			VM = chip8.LoadROM(chip8.Pong)
+		} else {
+			VM = chip8.LoadFile(File)
+		}
+	}
+
+	fmt.Println("done")
+	fmt.Print("Initializing CHIP-8 systems... ")
+
 	InitScreen()
 	InitAudio()
 	InitFont()
 
+	fmt.Println("done")
+	fmt.Println("")
+
 	// set processor speed and refresh rate
 	clock := time.NewTicker(time.Millisecond * 3)
 	video := time.NewTicker(time.Second / 60)
+
+	fmt.Println("Starting program; press F1 for help")
 
 	// loop until window closed or user quit
 	for ProcessEvents() {
@@ -84,16 +134,18 @@ func Refresh() {
 
 	// frame various portions of the app
 	Frame(8, 8, 322, 162)
+	Frame(8, 176, 322, 164)
 	Frame(338, 8, 204, 162)
-	Frame(8, 176, 146, 164)
+	Frame(338, 176, 204, 164)
 
 	// update the video screen and copy it
 	RefreshScreen()
 	CopyScreen(10, 10, 5)
 
 	// debug assembly and virtual registers
+	DebugLog(12, 180)
 	DebugAssembly(342, 11)
-	DebugRegisters(12, 180)
+	DebugRegisters(342, 180)
 
 	// show the new frame
 	Renderer.Present()
