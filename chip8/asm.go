@@ -94,6 +94,9 @@ func Assemble(file string) []byte {
 		rom = assembleInstruction(tokens, rom, &labels)
 	}
 
+	// output result
+	fmt.Println("Assembled", len(rom) - 0x200, "bytes")
+
 	// done, return only the program memory
 	return rom[0x200:]
 }
@@ -268,7 +271,7 @@ func readDecLit(r []byte) (token, []byte) {
 	}
 
 	// convert the hex value to an unsigned number
-	n, _ := strconv.ParseInt(string(r[:i]), 10, 16)
+	n, _ := strconv.ParseInt(string(r[:i]), 10, 32)
 
 	return token{typ: TOKEN_LIT, val: int(n)}, r[i:]
 }
@@ -285,7 +288,7 @@ func readHexLit(r []byte) (token, []byte) {
 	}
 
 	// convert the hex value to an unsigned number
-	n, _ := strconv.ParseInt(string(r[0:i]), 16, 16)
+	n, _ := strconv.ParseInt(string(r[0:i]), 16, 32)
 
 	return token{typ: TOKEN_LIT, val: int(n)}, r[i:]
 }
@@ -305,7 +308,7 @@ func readBinLit(r []byte) (token, []byte) {
 	s := strings.Replace(string(r[0:i]), ".", "0", -1)
 
 	// convert the hex value to an unsigned number
-	n, _ := strconv.ParseInt(s, 2, 16)
+	n, _ := strconv.ParseInt(s, 2, 32)
 
 	return token{typ: TOKEN_LIT, val: int(n)}, r[i:]
 }
@@ -801,29 +804,32 @@ func assembleLD(tokens []token, rom []byte, labels *map[string]int) []byte {
 /// Assemble a DB instruction
 ///
 func assembleDB(tokens []token, rom []byte, labels *map[string]int) []byte {
+	if len(tokens) == 0 {
+		return rom
+	}
+
+	// bytes to be written to the rom
 	bs := make([]byte, 0, 20)
 
-	// collect all the bytes to write out
-	for len(tokens) > 0 {
-		t := tokens[0]
+readByte:
+	t := tokens[0]
 
-		// write bytes and strings
-		switch t.typ {
-		case TOKEN_LIT:
-			bs = append(bs, byte(t.val.(int) & 0xFF))
-		case TOKEN_TEXT:
-			bs = append(bs, t.val.(string)...)
-		default:
-			panic("illegal byte literal")
-		}
+	// write bytes and strings
+	if t.typ  == TOKEN_LIT {
+		bs = append(bs, byte(t.val.(int) & 0xFF))
+	} else if t.typ == TOKEN_TEXT {
+		bs = append(bs, t.val.(string)...)
+	} else {
+		panic("illegal byte literal")
+	}
 
-		// if more tokens, expect a delimiter
+	// pop this token
+	tokens = tokens[1:]
+
+	// is there a delimiter and so we're expecting another token?
+	if len(tokens) > 1 && tokens[0].typ == TOKEN_DELIM {
 		tokens = tokens[1:]
-		if len(tokens) > 1 {
-			if tokens[0].typ != TOKEN_DELIM {
-				panic("syntax error")
-			}
-		}
+		goto readByte
 	}
 
 	// append all the bytes to the rom
@@ -833,27 +839,33 @@ func assembleDB(tokens []token, rom []byte, labels *map[string]int) []byte {
 /// Assemble a DW instruction
 ///
 func assembleDW(tokens []token, rom []byte, labels *map[string]int) []byte {
+	if len(tokens) == 0 {
+		return rom
+	}
+
+	// bytes to be written to the rom
 	bs := make([]byte, 0, 20)
 
-	// collect all the bytes to write out
-	for len(tokens) > 0 {
-		t := tokens[0]
+readWord:
+	t := tokens[0]
 
-		// write bytes and strings
-		switch t.typ {
-		case TOKEN_LIT:
-			bs = append(bs, byte(t.val.(int) >> 8 & 0xFF), byte(t.val.(int) & 0xFF))
-		default:
-			panic("illegal byte literal")
-		}
+	// write bytes and strings
+	if t.typ  == TOKEN_LIT {
+		b0 := t.val.(int) >> 8 & 0xFF
+		b1 := t.val.(int) & 0xFF
 
-		// if more tokens, expect a delimiter
+		bs = append(bs, byte(b0), byte(b1))
+	} else {
+		panic("illegal word literal")
+	}
+
+	// pop this token
+	tokens = tokens[1:]
+
+	// is there a delimiter and so we're expecting another token?
+	if len(tokens) > 1 && tokens[0].typ == TOKEN_DELIM {
 		tokens = tokens[1:]
-		if len(tokens) > 1 {
-			if tokens[0].typ != TOKEN_DELIM {
-				panic("syntax error")
-			}
-		}
+		goto readWord
 	}
 
 	// append all the bytes to the rom

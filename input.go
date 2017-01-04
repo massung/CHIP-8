@@ -56,6 +56,8 @@ func ProcessEvents() bool {
 					if Paused {
 						VM.Step()
 					}
+				case sdl.SCANCODE_F11:
+					DebugMemory()
 				case sdl.SCANCODE_F12:
 					SaveScreen()
 					fmt.Println("Screen saved to SCREENSHOT.BMP")

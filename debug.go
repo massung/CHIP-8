@@ -121,6 +121,26 @@ func DebugRegisters(x, y int) {
 	DrawText(fmt.Sprintf("ST - #%02X", VM.GetTimer(VM.ST)), x, y + 60)
 }
 
+/// Show a memory dump at I. Useful for sprite debugging.
+///
+func DebugMemory() {
+	a := int(VM.I) & 0xFFF0
+
+	fmt.Println("\nMemory dump near I...")
+
+	// show 8 lines of 8 bytes each
+	for line := 0; line < 8; line++ {
+		if n := a+line*8; n < 0x1000 {
+			line := fmt.Sprintf(" %04X - %02X %02X %02X %02X %02X %02X %02X %02X", n,
+				VM.Memory[n + 0], VM.Memory[n + 1], VM.Memory[n + 2], VM.Memory[n + 3],
+				VM.Memory[n + 4], VM.Memory[n + 5], VM.Memory[n + 6], VM.Memory[n + 7])
+
+			// show the line and flush
+			fmt.Println(line)
+		}
+	}
+}
+
 /// Show the current log text (and get new text).
 ///
 func DebugLog(x, y int) {

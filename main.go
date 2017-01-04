@@ -20,6 +20,10 @@ var (
 	///
 	Assemble bool
 
+	/// True if the ROM should load paused.
+	///
+	Break bool
+
 	/// The CHIP-8 virtual machine.
 	///
 	VM *chip8.CHIP_8
@@ -42,6 +46,7 @@ func main() {
 
 	// parse the command line
 	flag.BoolVar(&Assemble, "a", false, "Assemble file before loading.")
+	flag.BoolVar(&Break, "b", false, "Start ROM paused.")
 	flag.Parse()
 
 	// get the file name of the ROM to load
@@ -89,25 +94,25 @@ func main() {
 		VM = chip8.LoadROM(chip8.Pong)
 	} else {
 		if Assemble {
-			fmt.Println("Assembling...")
-
 			VM = chip8.LoadROM(chip8.Assemble(File))
 		} else {
 			VM = chip8.LoadFile(File)
 		}
 	}
 
-	fmt.Println("Initializing CHIP-8 systems... ")
-
 	InitScreen()
 	InitAudio()
 	InitFont()
+
+	// initially break into debugger?
+	Paused = Break
 
 	// set processor speed and refresh rate
 	clock := time.NewTicker(time.Millisecond * 3)
 	video := time.NewTicker(time.Second / 60)
 
-	fmt.Println("Starting program; press F1 for help")
+	// notify that the main loop has started
+	fmt.Println("\nStarting program; press F1 for help")
 
 	// loop until window closed or user quit
 	for ProcessEvents() {
