@@ -81,7 +81,7 @@ func main() {
 	if File == "" {
 		fmt.Println("Loading PONG (default)")
 	} else {
-		fmt.Println("Loading ", File)
+		fmt.Println("Loading", File)
 	}
 
 	// create a new CHIP-8 virtual machine, load the ROM..
@@ -91,23 +91,17 @@ func main() {
 		if Assemble {
 			fmt.Println("Assembling...")
 
-			chip8.Assemble(File)
-
-			VM = chip8.LoadROM(chip8.Pong)
+			VM = chip8.LoadROM(chip8.Assemble(File))
 		} else {
 			VM = chip8.LoadFile(File)
 		}
 	}
 
-	fmt.Println("done")
-	fmt.Print("Initializing CHIP-8 systems... ")
+	fmt.Println("Initializing CHIP-8 systems... ")
 
 	InitScreen()
 	InitAudio()
 	InitFont()
-
-	fmt.Println("done")
-	fmt.Println("")
 
 	// set processor speed and refresh rate
 	clock := time.NewTicker(time.Millisecond * 3)

@@ -78,7 +78,7 @@ func DebugHelp() {
 ///
 func DebugAssembly(x, y int) {
 	if Address <= VM.PC - 30 || Address >= VM.PC - 2 || Address ^ VM.PC & 1 == 1 {
-		Address = VM.PC - 4
+		Address = VM.PC - 2
 	}
 
 	// show the disassembled instructions
