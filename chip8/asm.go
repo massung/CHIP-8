@@ -1,117 +1,299 @@
 package chip8
 
 import (
-	"io/ioutil"
-	"regexp"
+	"bufio"
 	"bytes"
-	"fmt"
-	"unicode"
+	"io/ioutil"
 )
 
-/// Token types.
-///
+type tokenType uint
+
 const (
-	COMMENT = iota
-	LABEL
-	VREG
-	LITERAL
-	TEXT
+	TOKEN_SPACE tokenType = iota
+	TOKEN_LABEL
+	TOKEN_OP
+	TOKEN_V
+	TOKEN_B
+	TOKEN_I
+	TOKEN_F
+	TOKEN_K
+	TOKEN_DT
+	TOKEN_ST
+	TOKEN_ADDR
+	TOKEN_REF
+	TOKEN_DEC
+	TOKEN_HEX
+	TOKEN_BIN
+	TOKEN_TEXT
+	TOKEN_DELIM
+	TOKEN_COMMENT
 )
 
-/// Lexical token patterns.
-///
-var (
-	reComment = regexp.MustCompile(`;.*`)
-	reLabel = regexp.MustCompile(`\a[\a\d_]*:`)
-	reInst = regexp.MustCompile(`\a+`)
-	reReg = regexp.MustCompile(`V[\dA-F]|I|K|F|B|DT|ST`)
-	reHexLit = regexp.MustCompile(`#[\dA-F]+`)
-	reBinLit = regexp.MustCompile(`$[01.]`)
-	reDecLit = regexp.MustCompile(`\d+`)
-	reText = regexp.MustCompile(`'([^\\']+|\\.)+'`)
-)
-
-/// Source tokens.
-///
-type Token struct {
-	kind uint
-	s    []string
+type token struct {
+	typ tokenType
+	val interface{}
 }
 
 /// Assemble an input CHIP-8 source code file.
 ///
-func Assemble(file string) ([]byte, error) {
+func Assemble(file string) {
 	content, err := ioutil.ReadFile(file)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 
-	// split the bytes into lines
-	lines := bytes.Split(content, []byte{'\n'})
+	// create simple line scanner over the file
+	reader := bytes.NewReader(bytes.ToUpper(content))
+	scanner := bufio.NewScanner(reader)
 
-	// pass 1 - loop over lines, tokenize
-	for i, line := range lines {
-		if len(line) == 0 {
-			continue
-		}
-
-		//
-		label, mnemonic, err := Tokenize(line)
+	// loop over each line
+	for scanner.Scan() {
+		tokens, err := readTokens(scanner.Bytes())
 		if err != nil {
-			return nil, fmt.Errorf("%s (%d): %v", file, i, err)
+			// TODO: panic with err, file & line
 		}
 
-		fmt.Println("Label:", label, "Op:", mnemonic)
+		// collect all the tokens read
+		for t := range tokens {
+			println(t)
+		}
+	}
+}
+
+/// Find the next token in the scanner.
+///
+func readTokens(r []byte) ([]token, error) {
+	tokens := make([]token, 0, 20)
+
+	// loop until the entire source is consumed
+	for len(r) > 0 {
+		token := nil
+
+		switch c := r[0] {
+		case 'A' <= c && c <= 'Z':
+			token, r = readLabel(r)
+		}
+
+		if token == nil {
+
+		}
+	}
+
+	return tokens, nil
+}
+
+/// Read a label or reference.
+///
+func readLabel(r []byte) (token, []byte) {
+	for i, c := range r {
+		if (c < 'A' || c > 'Z') && (c < '0' || c > '9') && c != '_' {
+			if c == ':' {
+				return token{typ: TOKEN_LABEL, val: r[:i]}, r[i+1:]
+			}
+
+			return token{typ: TOKEN_REF, val: r[:i]}, r[i:]
+		}
 	}
 
 	return nil, nil
 }
 
-/// Walk a string and tokenize each aspect of it.
+/// Read a decimal literal.
 ///
-func Tokenize(line []byte) (string, string, error) {
-	label, r1 := parseLabel(line)
-	mnemonic, _ := parseMnemonic(r1)
+func tokenDecLit(src []byte) (int, []byte, error) {
+	for i, c := range src {
+		if c < '0' || c > '9' {
+			if i > 0 {
+				return line[:i], line[i:]
+			}
 
-	return label, mnemonic, nil
-}
-
-/// Parse proceeding whitespace.
-///
-func parseSpaces(line []byte) (bool, []byte) {
-	i := bytes.IndexFunc(line, func (r rune) bool {
-		return !unicode.IsSpace(r)
-	})
-
-	if i < 0 {
-		return false, line
+			break
+		}
 	}
 
-	return true, line[i:]
+	return nil, line
+}
+
+/// Parse a hexadecimal literal.
+///
+func parseHexLiteral(line []byte) ([]byte, []byte) {
+	for i, c := range line[1:] {
+		if (c < '0' || c > '9') && (c < 'A' || c > 'F') {
+			if i > 0 {
+				return line[:i], line[i:]
+			}
+
+			break
+		}
+	}
+
+	return nil, line
+}
+
+/// Parse a binary literal.
+///
+func parseBinLiteral(line []byte) ([]byte, []byte) {
+	for i, c := range line[1:] {
+		if c != '0' && c != '1' && c != '.' {
+			if i > 0 {
+				return line[:i], line[i:]
+			}
+
+			break
+		}
+	}
+
+	return nil, line
+}
+
+
+/// Parse whitespace, returns number skipped.
+///
+func parseSpaces(line []byte) int {
+	for i := 0;i < len(line);i++ {
+		if line[i] > 32 {
+			return i
+		}
+	}
+
+	return len(line)
+}
+
+/// Parse a comment.
+///
+func parseComment(line []byte) ([]byte, []byte) {
+	n := parseSpaces(line)
+
+	// at the end? there's nothing left
+	if len(line) == n {
+		return nil, []byte{}
+	}
+
+	// is there anything left?
+	if line[n] == ';' {
+		return line[n:], []byte{}
+	}
+
+	return nil, line[n:]
+}
+
+/// Parse an identifier.
+///
+func parseIdent(line []byte) ([]byte, []byte) {
+	if len(line) == 0 || (line[0] < 'A' || line[0] > 'Z') && line[0] != '_' {
+		return nil, line
+	}
+
+	// parse all alphanumeric characters
+	for i, c := range line {
+		if (c < 'A' || c > 'Z') && c != '_' && (c < '0' || c > '9') {
+			return line[:i], line[i:]
+		}
+	}
+
+	// entire line is an identifier
+	return line, []byte{}
 }
 
 /// Parse any opening label.
 ///
-func parseLabel(line []byte) (string, []byte) {
-	return "", line
+func parseLabel(line []byte) ([]byte, []byte) {
+	label, rest := parseIdent(line)
+	if label == nil {
+		return nil, line
+	}
+
+	// labels must be followed by a colon
+	if len(rest) == 0 || rest[0] != ':' {
+		return nil, line
+	}
+
+	return label, rest[1:]
 }
 
 /// Parse an instruction mnemonic.
 ///
-func parseMnemonic(line []byte) (string, []byte) {
-	spaces, rest := parseSpaces(line)
-	if !spaces {
-		return "", line
+func parseInstruction(line []byte) ([]byte, []byte) {
+	if n := parseSpaces(line); n > 0 {
+		return parseIdent(line[n:])
 	}
 
-	// find the first non-letter
-	i := bytes.IndexFunc(rest, func (r rune) bool {
-		return !unicode.IsLetter(r)
-	})
+	return nil, line
+}
 
-	if i < 0 {
-		return "", line
+/// Parse all operands.
+///
+func parseOperands(line []byte) ([][]byte, []byte) {
+	if n := parseSpaces(line); n > 0 {
+		ops := make([][]byte, 0, 3)
+
+		// parse the first operand
+		op, r := parseOperand(line[n:])
+		if op == nil {
+			return nil, r
+		}
+
+		for {
+			n := parseDelim(r)
+
+			// push the current operand
+			ops = append(ops, op)
+
+			// is there another after this one?
+			if n == 0 {
+				break
+			}
+
+			// parse the next operand
+			op, r = parseOperand(r[n:])
+		}
+
+		return ops, line
 	}
 
-	return string(rest[:i]), rest[i:]
+	return nil, line
+}
+
+/// Parse an operand.
+///
+func parseOperand(line []byte) ([]byte, []byte) {
+	id, r := parseIdent(line)
+
+	if id != nil {
+		return id, r
+	}
+
+	return parseLiteral(line)
+}
+
+/// Parse an operand delimiter (comma).
+///
+func parseDelim(line []byte) int {
+	n := parseSpaces(line)
+
+	// make sure there is a comma
+	if len(line) > n && line[n] == ',' {
+		return n + 1 + parseSpaces(line[n+1:])
+	}
+
+	return 0
+}
+
+/// Parse a literal constant.
+///
+func parseLiteral(line []byte) ([]byte, []byte) {
+	if len(line) == 0 {
+		return nil, line
+	}
+
+	switch line[0] {
+	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+		return parseDecLiteral(line)
+	case '#':
+		return parseHexLiteral(line)
+	case '$':
+		return parseBinLiteral(line)
+	}
+
+	return parseIdent(line)
 }

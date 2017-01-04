@@ -79,9 +79,9 @@ func main() {
 	fmt.Println("")
 
 	if File == "" {
-		fmt.Println("Loading PONG...")
+		fmt.Println("Loading PONG (default)")
 	} else {
-		fmt.Print("Loading ", File, "... ")
+		fmt.Println("Loading ", File)
 	}
 
 	// create a new CHIP-8 virtual machine, load the ROM..
