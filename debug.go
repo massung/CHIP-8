@@ -78,12 +78,12 @@ func DebugHelp() {
 /// the CHIP-8 program counter.
 ///
 func DebugAssembly(x, y int) {
-	if Address <= VM.PC - 30 || Address >= VM.PC - 2 || Address ^ VM.PC & 1 == 1 {
+	if Address <= VM.PC - 38 || Address >= VM.PC - 2 || Address ^ VM.PC & 1 == 1 {
 		Address = VM.PC - 2
 	}
 
 	// show the disassembled instructions
-	for i := 0;i < 32;i+=2 {
+	for i := 0;i < 38;i+=2 {
 		if Address + uint(i) == VM.PC {
 			if Paused {
 				Renderer.SetDrawColor(176, 32, 57, 255)
@@ -118,8 +118,8 @@ func DebugRegisters(x, y int) {
 	DrawText(fmt.Sprintf("PC - #%04X", VM.PC), x, y)
 	DrawText(fmt.Sprintf("SP - #%04X", VM.SP), x, y + 10)
 	DrawText(fmt.Sprintf("I  - #%04X", VM.I), x, y + 30)
-	DrawText(fmt.Sprintf("DT - #%02X", VM.GetTimer(VM.DT)), x, y + 50)
-	DrawText(fmt.Sprintf("ST - #%02X", VM.GetTimer(VM.ST)), x, y + 60)
+	DrawText(fmt.Sprintf("DT - #%02X", VM.GetDelayTimer()), x, y + 50)
+	DrawText(fmt.Sprintf("ST - #%02X", VM.GetSoundTimer()), x, y + 60)
 }
 
 /// Show a memory dump at I. Useful for sprite debugging.

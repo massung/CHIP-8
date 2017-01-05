@@ -34,7 +34,7 @@ loop:
     call erase_tail
     call user_input
     call move
-    call check_bounds
+    ;call check_bounds
 
     jp loop
 

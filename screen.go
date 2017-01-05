@@ -34,11 +34,17 @@ func RefreshScreen() {
 	// set the pixel color
 	Renderer.SetDrawColor(17, 29, 43, 255)
 
+	// redraw only the dimensions of the video
+	w, h := VM.GetResolution()
+
+	// the pitch (in bits) is the width, calculate shift
+	shift := uint(6) + (w >> 7)
+
 	// draw all the pixels
-	for p := 0;p < 64 * 32;p++ {
+	for p := uint(0);p < w * h;p++ {
 		if VM.Video[p>>3] & (0x80 >> uint(p&7)) != 0 {
-			x := int(p&63)
-			y := int(p>>6)
+			x := int(p&(w-1))
+			y := int(p>>shift)
 
 			// render the pixel to the screen
 			Renderer.DrawPoint(x, y)
@@ -52,12 +58,12 @@ func RefreshScreen() {
 /// CopyScreen to the render target.
 ///
 func CopyScreen(x, y, w, h int32) {
-	src := sdl.Rect{W: 64, H: 32}
+	vw, vh := VM.GetResolution()
 
-	// the screen is larger in high res mode
-	if VM.HighRes {
-		src.W = 128
-		src.H = 64
+	// source area of the screen target
+	src := sdl.Rect{
+		W: int32(vw),
+		H: int32(vh),
 	}
 
 	// stretch the render target to fit

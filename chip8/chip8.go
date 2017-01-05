@@ -45,13 +45,13 @@ type CHIP_8 struct {
 	///
 	V [16]byte
 
-	/// DT is the delay timer register. It is set to a time (in ns) in
-	/// the future and compared against the current time.
+	/// The delay timer register. It is set to a time (in ns) in the future
+	/// and compared against the current time.
 	///
 	DT int64
 
-	/// ST is the sound timer register. It is set to a time (in ns) in
-	/// the future and compared against the current time.
+	/// The sound timer register. It is set to a time (in ns) in the future
+	/// and compared against the current time.
 	///
 	ST int64
 
@@ -191,16 +191,38 @@ func (vm *CHIP_8) ReleaseKey(key uint) {
 	}
 }
 
-/// Converts a CHIP-8 timer register to a byte.
+/// Converts a CHIP-8 delay timer register to a byte.
 ///
-func (vm *CHIP_8) GetTimer(t int64) byte {
+func (vm *CHIP_8) GetDelayTimer() byte {
 	now := time.Now().UnixNano()
 
-	if now < t {
-		return uint8((t - now) * 60 / 1000000000)
+	if now < vm.DT {
+		return uint8((vm.DT - now) * 60 / 1000000000)
 	}
 
 	return 0
+}
+
+/// Converts the CHIP-8 sound timer register to a byte.
+///
+func (vm *CHIP_8) GetSoundTimer() byte {
+	now := time.Now().UnixNano()
+
+	if now < vm.ST {
+		return uint8((vm.ST - now) * 60 / 1000000000)
+	}
+
+	return 0
+}
+
+/// GetResolution returns the width and height of the CHIP-8.
+///
+func (vm *CHIP_8) GetResolution() (uint, uint) {
+	if vm.HighRes {
+		return 128, 64
+	}
+
+	return 64, 32
 }
 
 /// Process CHIP-8 emulation. This will execute until the clock is caught up.
@@ -481,7 +503,7 @@ func (vm *CHIP_8) loadXY(x, y uint) {
 /// load delay timer into vx.
 ///
 func (vm *CHIP_8) loadXDT(x uint) {
-	vm.V[x] = vm.GetTimer(vm.DT)
+	vm.V[x] = vm.GetDelayTimer()
 }
 
 /// load vx into delay timer.
@@ -638,10 +660,8 @@ func (vm *CHIP_8) drw(x, y uint, n byte) {
 	i := uint(vm.V[x] & 7)
 
 	// bytes per row
-	p := uint(8)
-	if vm.HighRes {
-		p = uint(16)
-	}
+	w, _ := vm.GetResolution()
+	p := w >> 3
 
 	// which scan line will it render on
 	y = uint(vm.V[y])*p

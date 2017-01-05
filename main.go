@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
+	"path/filepath"
 	"runtime"
 	"time"
 
@@ -59,7 +60,7 @@ func main() {
 
 	// create the main window and renderer or panic
 	flags := sdl.WINDOW_OPENGL | sdl.WINDOWPOS_CENTERED
-	if Window, Renderer, err = sdl.CreateWindowAndRenderer(550, 348, uint32(flags)); err != nil {
+	if Window, Renderer, err = sdl.CreateWindowAndRenderer(614, 380, uint32(flags)); err != nil {
 		panic(err)
 	}
 
@@ -86,7 +87,7 @@ func main() {
 	if File == "" {
 		fmt.Println("Loading PONG (default)")
 	} else {
-		fmt.Println("Loading", File)
+		fmt.Println("Loading", filepath.Base(File))
 	}
 
 	// create a new CHIP-8 virtual machine, load the ROM..
@@ -130,19 +131,19 @@ func Refresh() {
 	Renderer.Clear()
 
 	// frame various portions of the app
-	Frame(8, 8, 322, 162)
-	Frame(8, 176, 322, 164)
-	Frame(338, 8, 204, 162)
-	Frame(338, 176, 204, 164)
+	Frame(8, 8, 386, 194)
+	Frame(8, 208, 386, 164)
+	Frame(402, 8, 204, 194)
+	Frame(402, 208, 204, 164)
 
 	// update the video screen and copy it
 	RefreshScreen()
-	CopyScreen(10, 10, 320, 160)
+	CopyScreen(10, 10, 384, 192)
 
 	// debug assembly and virtual registers
-	DebugLog(12, 180)
-	DebugAssembly(342, 11)
-	DebugRegisters(342, 180)
+	DebugLog(12, 212)
+	DebugAssembly(406, 11)
+	DebugRegisters(406, 212)
 
 	// show the new frame
 	Renderer.Present()
