@@ -33,6 +33,10 @@ func (vm *CHIP_8) Disassemble(i uint) string {
 		return fmt.Sprintf("%04X - CLS", i)
 	} else if inst == 0x00EE {
 		return fmt.Sprintf("%04X - RET", i)
+	} else if inst == 0x00FE {
+		return fmt.Sprintf("%04X - LOW", i)
+	} else if inst == 0x00FF {
+		return fmt.Sprintf("%04X - HIGH", i)
 	} else if inst&0xF000 == 0x0000 {
 		return fmt.Sprintf("%04X - SYS    #%04X", i, a)
 	} else if inst&0xF000 == 0x1000 {

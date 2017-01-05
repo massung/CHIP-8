@@ -251,7 +251,7 @@ func readLabel(r []byte) (token, []byte) {
 		return token{typ: TOKEN_DT}, r[i:]
 	case "S", "ST":
 		return token{typ: TOKEN_ST}, r[i:]
-	case "CLS", "RET", "SYS", "JP", "CALL", "SE", "SNE", "SKP", "SKNP", "LD", "OR", "AND", "XOR", "ADD", "SUB", "SUBN", "SHR", "SHL", "RND", "DRW", "DB", "DW":
+	case "CLS", "RET", "LOW", "HIGH", "SYS", "JP", "CALL", "SE", "SNE", "SKP", "SKNP", "LD", "OR", "AND", "XOR", "ADD", "SUB", "SUBN", "SHR", "SHL", "RND", "DRW", "DB", "DW":
 		return token{typ: TOKEN_INSTRUCTION, val: s}, r[i:]
 	}
 
@@ -338,6 +338,10 @@ func assembleInstruction(tokens []token, rom []byte, labels *map[string]int) []b
 			return assembleCLS(tokens[1:], rom, labels)
 		case "RET":
 			return assembleRET(tokens[1:], rom, labels)
+		case "LOW":
+			return assembleLOW(tokens[1:], rom, labels)
+		case "HIGH":
+			return assembleHIGH(tokens[1:], rom, labels)
 		case "SYS":
 			return assembleSYS(tokens[1:], rom, labels)
 		case "JP":
@@ -449,6 +453,26 @@ func assembleRET(tokens []token, rom []byte, labels *map[string]int) []byte {
 	}
 
 	return append(rom, 0x00, 0xEE)
+}
+
+/// Assemble a LOW instruction.
+///
+func assembleLOW(tokens []token, rom []byte, labels *map[string]int) []byte {
+	if len(tokens) > 0 {
+		panic("illegal instruction")
+	}
+
+	return append(rom, 0x00, 0xFE)
+}
+
+/// Assemble a HIGH instruction.
+///
+func assembleHIGH(tokens []token, rom []byte, labels *map[string]int) []byte {
+	if len(tokens) > 0 {
+		panic("illegal instruction")
+	}
+
+	return append(rom, 0x00, 0xFF)
 }
 
 /// Assemble a SYS instruction

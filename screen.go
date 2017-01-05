@@ -14,7 +14,7 @@ func InitScreen() {
 	var err error
 
 	// create a render target for the display
-	Screen, err = Renderer.CreateTexture(sdl.PIXELFORMAT_RGB888, sdl.TEXTUREACCESS_TARGET, 64, 32)
+	Screen, err = Renderer.CreateTexture(sdl.PIXELFORMAT_RGB888, sdl.TEXTUREACCESS_TARGET, 128, 64)
 	if err != nil {
 		panic(err)
 	}
@@ -51,13 +51,17 @@ func RefreshScreen() {
 
 /// CopyScreen to the render target.
 ///
-func CopyScreen(x, y, scale int32) {
-	Renderer.Copy(Screen, nil, &sdl.Rect{
-		X: x,
-		Y: y,
-		W: 64 * scale,
-		H: 32 * scale,
-	})
+func CopyScreen(x, y, w, h int32) {
+	src := sdl.Rect{W: 64, H: 32}
+
+	// the screen is larger in high res mode
+	if VM.HighRes {
+		src.W = 128
+		src.H = 64
+	}
+
+	// stretch the render target to fit
+	Renderer.Copy(Screen, &src, &sdl.Rect{X: x, Y: y, W: w, H: h})
 }
 
 /// SaveScreen writes a BMP to disk of the current screen.

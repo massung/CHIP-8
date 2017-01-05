@@ -74,6 +74,10 @@ type CHIP_8 struct {
 	/// Keys hold the current state for the 16-key pad keys.
 	///
 	Keys [16]bool
+
+	/// True if the CHIP-8 is in high-res (128x64) mode.
+	///
+	HighRes bool
 }
 
 /// Load a ROM from a byte array and return a new CHIP-8 virtual machine.
@@ -146,6 +150,9 @@ func (vm *CHIP_8) Reset() {
 
 	// not waiting for a key
 	vm.W = nil
+
+	// not in high-res mode
+	vm.HighRes = false
 }
 
 /// Save the current state of the CHIP-8 virtual machine.
@@ -179,7 +186,7 @@ func (vm *CHIP_8) PressKey(key uint) {
 /// ReleaseKey emulates a CHIP-8 key being released.
 ///
 func (vm *CHIP_8) ReleaseKey(key uint) {
-	if key < 15 {
+	if key < 16 {
 		vm.Keys[key] = false
 	}
 }
@@ -249,6 +256,10 @@ func (vm *CHIP_8) Step() error {
 		vm.cls()
 	} else if inst == 0x00EE {
 		vm.ret()
+	} else if inst == 0x00FE {
+		vm.low()
+	} else if inst == 0x00FF {
+		vm.high()
 	} else if inst&0xF000 == 0x0000 {
 		vm.sys(a)
 	} else if inst&0xF000 == 0x1000 {
@@ -381,6 +392,18 @@ func (vm *CHIP_8) ret() {
 
 	// post-increment program counter
 	vm.SP += 2
+}
+
+/// set low res mode.
+///
+func (vm *CHIP_8) low() {
+	vm.HighRes = false
+}
+
+/// set high res mode.
+///
+func (vm *CHIP_8) high() {
+	vm.HighRes = true
 }
 
 /// jump to address.
@@ -614,15 +637,21 @@ func (vm *CHIP_8) drw(x, y uint, n byte) {
 	b := uint(vm.V[x] >> 3)
 	i := uint(vm.V[x] & 7)
 
+	// bytes per row
+	p := uint(8)
+	if vm.HighRes {
+		p = uint(16)
+	}
+
 	// which scan line will it render on
-	y = uint(vm.V[y])
+	y = uint(vm.V[y])*p
 
 	// draw each row of the sprite
 	for _, s := range vm.Memory[vm.I : vm.I+uint(n)] {
-		n := y*8 + b
+		n := y + b
 
-		// clip pixels off screen
-		if n >= 256 {
+		// clip pixels that are off screen
+		if (n >= 256 && !vm.HighRes) || (n >= 1024 && vm.HighRes) {
 			continue
 		}
 
@@ -643,7 +672,7 @@ func (vm *CHIP_8) drw(x, y uint, n byte) {
 		c |= b1 & ^vm.Video[n+1]
 
 		// next scan line
-		y += 1
+		y += uint(p)
 	}
 
 	// set carry flag if any collision occurred

@@ -137,7 +137,7 @@ func Refresh() {
 
 	// update the video screen and copy it
 	RefreshScreen()
-	CopyScreen(10, 10, 5)
+	CopyScreen(10, 10, 320, 160)
 
 	// debug assembly and virtual registers
 	DebugLog(12, 180)
