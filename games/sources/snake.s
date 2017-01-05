@@ -14,6 +14,7 @@
 ; v9    = food y
 ; va    = snake head
 ; vb    = snake tail
+; vc    = snake life
 ;
 ;! use WASD to move the snake
 ;! and eat the pellets
@@ -25,15 +26,9 @@
     ld          va, 4
     ld          vb, 0
 
-    ;; write the initial snake to memory
-    ld          v0, 10
-    ld          v1, 10
-    ld          v2, 11
-    ld          v3, 10
-    ld          v4, 12          ; head x
-    ld          v5, 10          ; head y
+    ; load the initial snake tail and head into memory
     ld          i, snake_tail
-    ld          [i], v5
+    ld          v5, [i]
 
     ; start moving to the right
     ld          v7, 1
@@ -49,9 +44,9 @@ loop:
     call        user_input
     call        move
     call        write_head
+    call        check_bounds
     call        draw_head
     call        erase_tail
-    call        check_bounds
 
     jp          loop
 
@@ -126,8 +121,7 @@ draw_head:
 
     ; grow the snake by 2.. do this at the tail
     ; and write two dummy positions into memory
-    ld          v0, 4
-    sub         vb, v0
+    add         vb, #fc ; -4
     ld          i, snake_tail
     add         i, vb
     ld          v0, #ff
@@ -179,50 +173,61 @@ spawn_food:
     drw         v8, v9, 1
     jp          spawn_food
 
+draw_score:
+    ld          v0, va
+    sub         v0, vb
+    shr         v0
+
+    ; convert the score to bcd and read it
+    ld          i, score
+    ld          b, v0
+    ld          v2, [i]
+
+    ; where to draw the score
+    ld          v0, 55
+    ld          v3, 0
+
+    ; tens digit
+    ld          f, v1
+    drw         v0, v3, 5
+
+    ; ones digit
+    ld          f, v2
+    add         v0, 5
+    drw         v0, v3, 5
+
+    ret
+
+fill_life:
+    ld          vc, #1f
+
+    ; draw the life bar to full at top
+    ld          i, life_bar
+    ld          v0, 0
+    ld          v1, 0
+rep:
+    drw         v0, v1, 1
+    add         v0, 8
+    se          v0, #40
+    jp          rep
+    ret
+
 game_over:
     ; TODO: show some kind of score... ?
 
 done:
-    jp done
+    jp          done
 
 
+life_bar:
+    dw          #F0F0,#F0F0,#F0F0,#F0F0,#F0F0,#F0F0,#F0F0,#F0F0
 start:
-    db $111.....
+    db          $111.....
 dot:
-    db $1.......
+    db          $1.......
 
 score:
-    db $.111....
-    db $1.......
-    db $.11.....
-    db $...1....
-    db $111.....
-
-    db $.111....
-    db $1.......
-    db $1.......
-    db $1.......
-    db $.111....
-
-    db $.11.....
-    db $1..1....
-    db $1..1....
-    db $1..1....
-    db $.11.....
-
-    db $111.....
-    db $1..1....
-    db $111.....
-    db $1..1....
-    db $1..1.....
-
-    db $1111....
-    db $1.......
-    db $111.....
-    db $1.......
-    db $1111....
+    db          0, 0, 0
 
 snake_tail:
-    db 0
-
-    ; put nothing after this in memory!!
+    db          10, 10, 11, 10, 12, 10
