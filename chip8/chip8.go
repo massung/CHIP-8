@@ -78,6 +78,23 @@ type CHIP_8 struct {
 	/// True if the CHIP-8 is in high-res (128x64) mode.
 	///
 	HighRes bool
+
+	/// A list of instruction address breakpoints.
+	///
+	Breakpoints []Breakpoint
+}
+
+/// Breakpoint is an implementation of error.
+///
+type Breakpoint struct {
+	address int
+	reason  string
+}
+
+/// Error implements the error interface for a Breakpoint.
+///
+func (b Breakpoint) Error() string {
+	return fmt.Sprintf("hit breakpoint @ %04X: %s", b.address, b.reason)
 }
 
 /// Load a ROM from a byte array and return a new CHIP-8 virtual machine.
@@ -165,6 +182,20 @@ func (vm *CHIP_8) Save(file string) {
 ///
 func (vm *CHIP_8) Restore(file string) {
 	// TODO:
+}
+
+/// AddBreakpoint at a ROM address to the CHIP-8 virtual machine.
+///
+func (vm *CHIP_8) AddBreakpoint(b Breakpoint) {
+	if b.address >= 0x200 && b.address < len(vm.ROM) {
+		vm.Breakpoints = append(vm.Breakpoints, b)
+	}
+}
+
+/// ClearBreakpoints removes all breakpoints.
+///
+func (vm *CHIP_8) ClearBreakpoints() {
+	vm.Breakpoints = make([]Breakpoint, 0)
 }
 
 /// PressKey emulates a CHIP-8 key being pressed.
@@ -354,6 +385,13 @@ func (vm *CHIP_8) Step() error {
 
 	// increment the cycle count
 	vm.Cycles += 1
+
+	// if at a breakpoint, return it
+	for _, b := range vm.Breakpoints {
+		if b.address == int(vm.PC) {
+			return b
+		}
+	}
 
 	return nil
 }

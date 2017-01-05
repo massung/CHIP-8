@@ -69,6 +69,10 @@ var rca_1802 = [0x200]byte{
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 }
 
+/// A "dummy" that does nothing.
+///
+var Dummy = []byte{0x12, 0x00}
+
 /// A default PONG program that can be loaded into memory if no program
 /// file is specified.
 ///

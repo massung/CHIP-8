@@ -93,9 +93,9 @@ func DebugAssembly(x, y int) {
 
 			// highlight the current instruction
 			Renderer.FillRect(&sdl.Rect{
-				X: int32(x),
+				X: int32(x - 2),
 				Y: int32(y + i * 5) - 1,
-				W: 200,
+				W: 202,
 				H: 10,
 			})
 		}
@@ -129,9 +129,9 @@ func DebugMemory() {
 
 	fmt.Println("\nMemory dump near I...")
 
-	// show 8 lines of 8 bytes each
+	// show 8 lines of 12 bytes each
 	for line := 0; line < 8; line++ {
-		if n := a+line*8; n < 0x1000 {
+		if n := a+line*12; n < 0x1000 {
 			line := fmt.Sprintf(" %04X - %02X %02X %02X %02X %02X %02X %02X %02X", n,
 				VM.Memory[n + 0], VM.Memory[n + 1], VM.Memory[n + 2], VM.Memory[n + 3],
 				VM.Memory[n + 4], VM.Memory[n + 5], VM.Memory[n + 6], VM.Memory[n + 7])
@@ -164,8 +164,8 @@ func DebugLog(x, y int) {
 
 	// display the log
 	for i := 0;i < 16 && line < len(Log);i++ {
-		if len(Log[line]) >= 45 {
-			DrawText(Log[line][:42] + "...", x, y)
+		if len(Log[line]) >= 52 {
+			DrawText(Log[line][:49] + "...", x, y)
 		} else {
 			DrawText(Log[line], x, y)
 		}

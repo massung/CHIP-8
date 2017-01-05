@@ -9,10 +9,27 @@ import (
 	"strings"
 )
 
-type tokenType uint
+/// Assembly is a completely assembled source file.
+///
+type Assembly struct {
+	/// ROM are the final, assembled bytes to load.
+	///
+	ROM []byte
 
+	/// Breakpoints is a list of addresses.
+	///
+	Breakpoints []Breakpoint
+
+	/// Specially marked comments are added to the help text.
+	///
+	Help []string
+}
+
+/// Lexical assembly tokens.
+///
 const (
-	TOKEN_LABEL tokenType = iota
+	TOKEN_BREAK uint = iota
+	TOKEN_LABEL
 	TOKEN_COLON
 	TOKEN_INSTRUCTION
 	TOKEN_V
@@ -31,14 +48,16 @@ const (
 	TOKEN_EOL
 )
 
+/// A single, parsed, lexical token.
+///
 type token struct {
-	typ tokenType
+	typ uint
 	val interface{}
 }
 
 /// Assemble an input CHIP-8 source code file.
 ///
-func Assemble(file string) []byte {
+func Assemble(file string) *Assembly {
 	content, err := ioutil.ReadFile(file)
 	if err != nil {
 		panic(err)
@@ -56,6 +75,9 @@ func Assemble(file string) []byte {
 
 	// labels mapped to the compiled byte offset
 	labels := make(map[string]int)
+
+	// a list of all hard-coded breakpoints
+	breakpoints := make([]Breakpoint, 0)
 
 	// pass 1 - parse everything, find labels and create the offset map
 	for i := 0;scanner.Scan();i++ {
@@ -75,6 +97,22 @@ func Assemble(file string) []byte {
 				// drop the label from the tokens, they aren't needed
 				tokens = tokens[2:]
 			}
+		}
+
+		// is there a BREAK on this line? if so, mark it
+		if len(tokens) > 0 && tokens[0].typ == TOKEN_BREAK {
+			breakpoints = append(breakpoints, Breakpoint{
+				address: offset,
+				reason: tokens[0].val.(string),
+			})
+
+			// ensure it's the end of the line
+			if len(tokens) > 1 {
+				panic("syntax error after break")
+			}
+
+			// nothing more to compile
+			continue
 		}
 
 		// save the tokens on this line for pass 2 and assemble what's there to track offset
@@ -98,7 +136,10 @@ func Assemble(file string) []byte {
 	fmt.Println("Assembled", len(rom) - 0x200, "bytes")
 
 	// done, return only the program memory
-	return rom[0x200:]
+	return &Assembly{
+		ROM: rom[0x200:],
+		Breakpoints: breakpoints,
+	}
 }
 
 /// Parse all the tokens in the line.
@@ -162,7 +203,7 @@ func readToken(r []byte) (token, []byte) {
 
 /// Read a simple character token.
 ///
-func readSimpleToken(r []byte, typ tokenType) (token, []byte) {
+func readSimpleToken(r []byte, typ uint) (token, []byte) {
 	if len(r) == 1 {
 		return token{typ: typ}, nil
 	}
@@ -253,6 +294,8 @@ func readLabel(r []byte) (token, []byte) {
 		return token{typ: TOKEN_ST}, r[i:]
 	case "CLS", "RET", "LOW", "HIGH", "SYS", "JP", "CALL", "SE", "SNE", "SKP", "SKNP", "LD", "OR", "AND", "XOR", "ADD", "SUB", "SUBN", "SHR", "SHL", "RND", "DRW", "DB", "DW":
 		return token{typ: TOKEN_INSTRUCTION, val: s}, r[i:]
+	case "BREAK", "BRK":
+		return token{typ: TOKEN_BREAK, val: strings.TrimSpace(string(r[i:]))}, nil
 	}
 
 	// just a label/reference
@@ -385,13 +428,13 @@ func assembleInstruction(tokens []token, rom []byte, labels *map[string]int) []b
 		}
 	}
 
-	// syntax error unexpected token
-	panic("syntax error")
+	// syntax error - expected instruction
+	panic("missing or unknown instruction")
 }
 
 /// Match operand tokens.
 ///
-func matchOperands(tokens []token, labels *map[string]int, m ...tokenType) ([]token, bool) {
+func matchOperands(tokens []token, labels *map[string]int, m ...uint) ([]token, bool) {
 	caps := make([]token, 0, 3)
 
 	// loop over all the desired tokens
@@ -678,7 +721,7 @@ func assembleADD(tokens []token, rom []byte, labels *map[string]int) []byte {
 	}
 
 	if ops, ok := matchOperands(tokens, labels, TOKEN_I, TOKEN_V); ok {
-		x := ops[0].val.(int)
+		x := ops[1].val.(int)
 
 		return append(rom, 0xF0|byte(x), 0x1E)
 	}

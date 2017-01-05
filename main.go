@@ -82,24 +82,17 @@ func main() {
 	// show copyright information
 	fmt.Println("CHIP-8, Copyright 2017 by Jeffrey Massung")
 	fmt.Println("All rights reserved")
-	fmt.Println("")
+	fmt.Println()
 
-	if File == "" {
-		fmt.Println("Loading PONG (default)")
-	} else {
+	// load either the file specified or default to PONG
+	if File != "" {
 		fmt.Println("Loading", filepath.Base(File))
+	} else {
+		fmt.Println("Loading PONG")
 	}
 
 	// create a new CHIP-8 virtual machine, load the ROM..
-	if File == "" {
-		VM = chip8.LoadROM(chip8.Pong)
-	} else {
-		if Assemble {
-			VM = chip8.LoadROM(chip8.Assemble(File))
-		} else {
-			VM = chip8.LoadFile(File)
-		}
-	}
+	Load()
 
 	InitScreen()
 	InitAudio()
@@ -109,7 +102,7 @@ func main() {
 	Paused = Break
 
 	// set processor speed and refresh rate
-	clock := time.NewTicker(time.Millisecond * 3)
+	clock := time.NewTicker(time.Millisecond * 2)
 	video := time.NewTicker(time.Second / 60)
 
 	// notify that the main loop has started
@@ -121,7 +114,44 @@ func main() {
 		case <-video.C:
 			Refresh()
 		case <-clock.C:
-			VM.Process(Paused)
+			res := VM.Process(Paused)
+
+			switch res.(type) {
+			case chip8.Breakpoint:
+				fmt.Println(res.Error())
+
+				// break the emulation
+				Paused = true
+			}
+		}
+	}
+}
+
+func Load() {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println(r)
+
+			// load the empty, dummy rom
+			VM = chip8.LoadROM(chip8.Dummy)
+		}
+	}()
+
+	if File == "" {
+		VM = chip8.LoadROM(chip8.Pong)
+	} else {
+		if Assemble {
+			asm := chip8.Assemble(File)
+
+			// load the assembled program
+			VM = chip8.LoadROM(asm.ROM)
+
+			// add all the breakpoints from the assembly
+			for _, b := range asm.Breakpoints {
+				VM.AddBreakpoint(b)
+			}
+		} else {
+			VM = chip8.LoadFile(File)
 		}
 	}
 }

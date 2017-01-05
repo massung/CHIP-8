@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/veandco/go-sdl2/sdl"
-	"fmt"
 )
 
 var (
@@ -35,8 +34,10 @@ func ProcessEvents() bool {
 		switch ev := e.(type) {
 		case *sdl.QuitEvent:
 			return false
-		case *sdl.KeyUpEvent:
-			if ev.Repeat == 0 {
+		case *sdl.KeyDownEvent:
+			if key, ok := KeyMap[ev.Keysym.Scancode]; ok {
+				VM.PressKey(key)
+			} else if ev.Repeat == 0 {
 				switch ev.Keysym.Scancode {
 				case sdl.SCANCODE_ESCAPE:
 					return false
@@ -60,21 +61,13 @@ func ProcessEvents() bool {
 					DebugMemory()
 				case sdl.SCANCODE_F12:
 					SaveScreen()
-					fmt.Println("Screen saved to SCREENSHOT.BMP")
 				case sdl.SCANCODE_BACKSPACE:
-					fmt.Println("Rebooting CHIP-8")
 					VM.Reset()
-				default:
-					if key, ok := KeyMap[ev.Keysym.Scancode]; ok {
-						VM.ReleaseKey(key)
-					}
 				}
 			}
-		case *sdl.KeyDownEvent:
-			if ev.Repeat == 0 {
-				if key, ok := KeyMap[ev.Keysym.Scancode]; ok {
-					VM.PressKey(key)
-				}
+		case *sdl.KeyUpEvent:
+			if key, ok := KeyMap[ev.Keysym.Scancode]; ok {
+				VM.ReleaseKey(key)
 			}
 		}
 	}
