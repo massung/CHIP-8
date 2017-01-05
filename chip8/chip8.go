@@ -55,6 +55,17 @@ type CHIP_8 struct {
 	///
 	ST int64
 
+	/// Clock is the time (in ns) when emulation begins.
+	///
+	Clock int64
+
+	/// Cycles is how many clock cycles have been processed. The RCA 1802
+	/// ran at 4-5 MHz, and each instruction took 16-24 clock cycles. Best
+	/// estimations are the 1802 could interpret 500 CHIP-8 instructions
+	/// per second.
+	///
+	Cycles int64
+
 	/// W is the wait key (V-register) pointer. When waiting for a key
 	/// to be pressed, it will be set to &V[0..F].
 	///
@@ -129,6 +140,10 @@ func (vm *CHIP_8) Reset() {
 	vm.DT = 0
 	vm.ST = 0
 
+	// reset the clock and cycles executed
+	vm.Clock = time.Now().UnixNano()
+	vm.Cycles = 0
+
 	// not waiting for a key
 	vm.W = nil
 }
@@ -179,6 +194,33 @@ func (vm *CHIP_8) GetTimer(t int64) byte {
 	}
 
 	return 0
+}
+
+/// Process CHIP-8 emulation. This will execute until the clock is caught up.
+///
+func (vm *CHIP_8) Process(paused bool) error {
+	now := time.Now().UnixNano()
+
+	// calculate how many cycles should have been executed
+	count := (now - vm.Clock) * 500 / 1000000000
+
+	// if paused, count cycles without stepping
+	if paused {
+		vm.Cycles = count
+	} else {
+		for vm.Cycles < count {
+			if err := vm.Step(); err != nil {
+				return err
+			}
+
+			// if waiting for a key, catch up
+			if vm.W != nil {
+				vm.Cycles = count
+			}
+		}
+	}
+
+	return nil
 }
 
 /// Step the CHIP-8 virtual machine a single instruction.
@@ -276,6 +318,9 @@ func (vm *CHIP_8) Step() error {
 	} else {
 		return fmt.Errorf("Invalid opcode: %04X", inst)
 	}
+
+	// increment the cycle count
+	vm.Cycles += 1
 
 	return nil
 }

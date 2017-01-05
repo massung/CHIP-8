@@ -57,20 +57,21 @@ func InitDebug() {
 /// Show the HELP text in the log.
 ///
 func DebugHelp() {
+	fmt.Println()
 	fmt.Println("Virtual keys:")
-	fmt.Println("  1-2-3-4")
-	fmt.Println("  Q-W-E-R")
-	fmt.Println("  A-S-D-F")
-	fmt.Println("  Z-X-C-V")
-	fmt.Println("")
+	fmt.Println(" 1-2-3-4")
+	fmt.Println(" Q-W-E-R")
+	fmt.Println(" A-S-D-F")
+	fmt.Println(" Z-X-C-V")
+	fmt.Println()
 	fmt.Println("Emulation keys:")
-	fmt.Println("  ESC      - Quit")
-	fmt.Println("  BS       - Reboot")
-	fmt.Println("  Pg Up/Dn - Scroll log")
-	fmt.Println("  F1       - Help")
-	fmt.Println("  F9       - Pause")
-	fmt.Println("  F10      - Step")
-	fmt.Println("  F12      - Screenshot")
+	fmt.Println(" F1     - Help")
+	fmt.Println(" PG U/D - Scroll log")
+	fmt.Println(" BACK   - Reboot")
+	fmt.Println(" SPACE  - Pause/debug")
+	fmt.Println(" F10    - Step")
+	fmt.Println(" F11    - Dump memory")
+	fmt.Println(" F12    - Screenshot")
 }
 
 /// DebugAssembly renders the disassembled instructions around
@@ -156,13 +157,12 @@ func DebugLog(x, y int) {
 	}
 
 	// starting line to display for the log
-	line := LogPos - 16
-
+	line := LogPos - 15
 	if line < 0 {
 		line = 0
 	}
 
-	// display 16 lines of the log
+	// display the log
 	for i := 0;i < 16 && line < len(Log);i++ {
 		if len(Log[line]) >= 45 {
 			DrawText(Log[line][:42] + "...", x, y)
@@ -184,6 +184,11 @@ func DebugLogScroll(d int) {
 	// clamp to home
 	if LogPos < 0 {
 		DebugLogHome()
+	}
+
+	// if too low, jump up to end of first screen
+	if d > 0 && LogPos < 16 {
+		LogPos = 16
 	}
 
 	// clamp to end

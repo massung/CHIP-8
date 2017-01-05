@@ -13,6 +13,7 @@
 ; v7    = direction (0=up, 1=right, 2=down, 3=left)
 ; v8    = food x
 ; v9    = food y
+; v10   = snake length
 ;
 ;* use WASD to move the snake
 ;* and eat the pellets
@@ -34,6 +35,7 @@ loop:
     call user_input
     call move
     call check_bounds
+
     jp loop
 
 
@@ -86,7 +88,7 @@ move_left:
 
 ;;; DRAW/COLLISION DETECTION
 draw_head:
-    ld i, snake
+    ld i, dot
     drw v5, v6, 1
     se vf, 1
     ret
@@ -114,9 +116,11 @@ game_over:
     jp game_over
 
 
-snake:
+dot:
     db $1.......
-pellet:
-    db $.1......
-    db $111.....
-    db $.1......
+
+score_mem:
+    db 0, 0, 0
+
+snake_mem:
+    db 0

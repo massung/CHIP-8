@@ -120,9 +120,7 @@ func main() {
 		case <-video.C:
 			Refresh()
 		case <-clock.C:
-			if !Paused {
-				VM.Step()
-			}
+			VM.Process(Paused)
 		}
 	}
 }

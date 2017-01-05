@@ -50,7 +50,7 @@ func ProcessEvents() bool {
 					DebugLogEnd()
 				case sdl.SCANCODE_F1:
 					DebugHelp()
-				case sdl.SCANCODE_F9:
+				case sdl.SCANCODE_SPACE:
 					Paused = !Paused
 				case sdl.SCANCODE_F10:
 					if Paused {
