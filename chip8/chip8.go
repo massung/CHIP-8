@@ -105,9 +105,21 @@ func (b Breakpoint) Error() string {
 	return fmt.Sprintf("hit breakpoint @ %04X: %s", b.address, b.reason)
 }
 
+/// SysCall is an implemention of error.
+///
+type SysCall struct {
+	address uint
+}
+
+/// Error implements the error interface for a SysCall.
+///
+func (call SysCall) Error() string {
+	return fmt.Sprintf("unimplmented syscall to #%04X", call.address)
+}
+
 /// Load a ROM from a byte array and return a new CHIP-8 virtual machine.
 ///
-func LoadROM(program []byte) *CHIP_8 {
+func LoadROM(program []byte) (*CHIP_8, int) {
 	if len(program) > 0x1000 - 0x200 {
 		panic("Program too large to fit in memory!")
 	}
@@ -128,12 +140,12 @@ func LoadROM(program []byte) *CHIP_8 {
 	// reset the VM memory
 	vm.Reset()
 
-	return vm
+	return vm, len(program)
 }
 
 /// Load a ROM file and return a new CHIP-8 virtual machine.
 ///
-func LoadFile(file string) *CHIP_8 {
+func LoadFile(file string) (*CHIP_8, int) {
 	program, err := ioutil.ReadFile(file)
 	if err != nil {
 		panic(err)
@@ -359,6 +371,8 @@ func (vm *CHIP_8) Step() error {
 		vm.scrollRight()
 	} else if inst == 0x00FC {
 		vm.scrollLeft()
+	} else if inst == 0x00FD {
+		vm.exit()
 	} else if inst == 0x00FE {
 		vm.low()
 	} else if inst == 0x00FF {
@@ -409,6 +423,8 @@ func (vm *CHIP_8) Step() error {
 		vm.jumpV0(a)
 	} else if inst&0xF000 == 0xC000 {
 		vm.loadRandom(x, b)
+	} else if inst&0xF00F == 0xD000 {
+		vm.drawSpriteEx(x, y)
 	} else if inst&0xF000 == 0xD000 {
 		vm.drawSprite(x, y, n)
 	} else if inst&0xF0FF == 0xE09E {
@@ -427,6 +443,8 @@ func (vm *CHIP_8) Step() error {
 		vm.addIX(x)
 	} else if inst&0xF0FF == 0xF029 {
 		vm.loadF(x)
+	} else if inst&0xF0FF == 0xF030 {
+		vm.loadHF(x)
 	} else if inst&0xF0FF == 0xF033 {
 		vm.loadB(x)
 	} else if inst&0xF0FF == 0xF055 {
@@ -474,13 +492,13 @@ func (vm *CHIP_8) cls() {
 	}
 }
 
-/// system call an RCA 1802 program at address in ROM.
+/// System call an RCA 1802 program at an address.
 ///
 func (vm *CHIP_8) sys(address uint) {
-	// TODO:
+	// unimplemented
 }
 
-/// call a subroutine at address.
+/// Call a subroutine at address.
 ///
 func (vm *CHIP_8) call(address uint) {
 	if vm.SP < 0x1E0 {
@@ -498,7 +516,7 @@ func (vm *CHIP_8) call(address uint) {
 	vm.PC = address
 }
 
-/// return from subroutine.
+/// Return from subroutine.
 ///
 func (vm *CHIP_8) ret() {
 	if vm.SP == 0x200 {
@@ -512,22 +530,33 @@ func (vm *CHIP_8) ret() {
 	vm.SP += 2
 }
 
-/// set low res mode.
+/// Exit the interpreter.
+///
+func (vm *CHIP_8) exit() {
+	vm.PC -= 2
+}
+
+/// Set low res mode.
 ///
 func (vm *CHIP_8) low() {
 	vm.HighRes = false
 }
 
-/// set high res mode.
+/// Set high res mode.
 ///
 func (vm *CHIP_8) high() {
 	vm.HighRes = true
 }
 
-/// scroll n pixels up.
+/// Scroll n pixels up.
 ///
 func (vm *CHIP_8) scrollUp(n byte) {
 	p := vm.GetPitch()
+
+	// shift half the lines in low res mode (note: tv emu half-pixel shift odd?)
+	if !vm.HighRes {
+		n >>= 1
+	}
 
 	// shift all the pixels up
 	copy(vm.Video[:], vm.Video[int(n)*p:])
@@ -538,10 +567,15 @@ func (vm *CHIP_8) scrollUp(n byte) {
 	}
 }
 
-/// scroll n pixels down.
+/// Scroll n pixels down.
 ///
 func (vm *CHIP_8) scrollDown(n byte) {
 	p := vm.GetPitch()
+
+	// shift half the lines in low res mode (note: tv emu half-pixel shift odd?)
+	if !vm.HighRes {
+		n >>= 1
+	}
 
 	// shift all the pixels down
 	copy(vm.Video[int(n)*p:], vm.Video[:])
@@ -552,49 +586,55 @@ func (vm *CHIP_8) scrollDown(n byte) {
 	}
 }
 
-/// scroll 4 pixels right.
+/// Scroll pixels right.
 ///
 func (vm *CHIP_8) scrollRight() {
-	p := vm.GetPitch()-1
+	p := vm.GetPitch()
+
+	// how many pixels to shift
+	shift := uint(p >> 2)
 
 	for i := 0x3FF;i >= 0;i-- {
-		vm.Video[i] >>= 4
+		vm.Video[i] >>= shift
 
-		// get the lower 4 bits from the previous byte
-		if i&p > 0 {
-			vm.Video[i] |= (vm.Video[i-1] & 0xF) << 4
+		// get the lower bits from the previous byte
+		if i&(p-1) > 0 {
+			vm.Video[i] |= vm.Video[i-1] << (8 - shift)
 		}
 	}
 }
 
-/// scroll 4 pixels left.
+/// Scroll pixels left.
 ///
 func (vm *CHIP_8) scrollLeft() {
-	p := vm.GetPitch()-1
+	p := vm.GetPitch()
+
+	// how many pixels to shift
+	shift := uint(p >> 2)
 
 	for i := 0;i < 0x400;i++ {
-		vm.Video[i] <<= 4
+		vm.Video[i] <<= shift
 
-		// get the upper 4 bits from the next byte
-		if i&p < p {
-			vm.Video[i] |= vm.Video[i+1] >> 4
+		// get the upper bits from the next byte
+		if i&(p-1) < (p-1) {
+			vm.Video[i] |= vm.Video[i+1] >> (8 - shift)
 		}
 	}
 }
 
-/// jump to address.
+/// Jump to address.
 ///
 func (vm *CHIP_8) jump(address uint) {
 	vm.PC = address
 }
 
-/// jump to address + v0.
+/// Jump to address + v0.
 ///
 func (vm *CHIP_8) jumpV0(address uint) {
 	vm.PC = address + uint(vm.V[0])
 }
 
-/// skip next instruction if vx == n.
+/// Skip next instruction if vx == n.
 ///
 func (vm *CHIP_8) skipIf(x uint, b byte) {
 	if vm.V[x] == b {
@@ -602,7 +642,7 @@ func (vm *CHIP_8) skipIf(x uint, b byte) {
 	}
 }
 
-/// skip next instruction if vx != n.
+/// Skip next instruction if vx != n.
 ///
 func (vm *CHIP_8) skipIfNot(x uint, b byte) {
 	if vm.V[x] != b {
@@ -610,7 +650,7 @@ func (vm *CHIP_8) skipIfNot(x uint, b byte) {
 	}
 }
 
-/// skip next instruction if vx == vy.
+/// Skip next instruction if vx == vy.
 ///
 func (vm *CHIP_8) skipIfXY(x, y uint) {
 	if vm.V[x] == vm.V[y] {
@@ -618,7 +658,7 @@ func (vm *CHIP_8) skipIfXY(x, y uint) {
 	}
 }
 
-/// skip next instruction if vx != vy.
+/// Skip next instruction if vx != vy.
 ///
 func (vm *CHIP_8) skipIfNotXY(x, y uint) {
 	if vm.V[x] != vm.V[y] {
@@ -626,7 +666,7 @@ func (vm *CHIP_8) skipIfNotXY(x, y uint) {
 	}
 }
 
-/// skip next instruction if key(vx) is pressed.
+/// Skip next instruction if key(vx) is pressed.
 ///
 func (vm *CHIP_8) skipIfPressed(x uint) {
 	if vm.Keys[vm.V[x]] {
@@ -634,7 +674,7 @@ func (vm *CHIP_8) skipIfPressed(x uint) {
 	}
 }
 
-/// skip next instruction if key(vx) is not pressed.
+/// Skip next instruction if key(vx) is not pressed.
 ///
 func (vm *CHIP_8) skipIfNotPressed(x uint) {
 	if !vm.Keys[vm.V[x]] {
@@ -642,49 +682,49 @@ func (vm *CHIP_8) skipIfNotPressed(x uint) {
 	}
 }
 
-/// load n into vx.
+/// Load n into vx.
 ///
 func (vm *CHIP_8) loadX(x uint, b byte) {
 	vm.V[x] = b
 }
 
-/// load y into vx.
+/// Load y into vx.
 ///
 func (vm *CHIP_8) loadXY(x, y uint) {
 	vm.V[x] = vm.V[y]
 }
 
-/// load delay timer into vx.
+/// Load delay timer into vx.
 ///
 func (vm *CHIP_8) loadXDT(x uint) {
 	vm.V[x] = vm.GetDelayTimer()
 }
 
-/// load vx into delay timer.
+/// Load vx into delay timer.
 ///
 func (vm *CHIP_8) loadDTX(x uint) {
 	vm.DT = time.Now().UnixNano() + int64(vm.V[x])*1000000000/60
 }
 
-/// load vx into sound timer.
+/// Load vx into sound timer.
 ///
 func (vm *CHIP_8) loadSTX(x uint) {
 	vm.ST = time.Now().UnixNano() + int64(vm.V[x])*1000000000/60
 }
 
-/// load vx with next key hit (blocking).
+/// Load vx with next key hit (blocking).
 ///
 func (vm *CHIP_8) loadXK(x uint) {
 	vm.W = &vm.V[x]
 }
 
-/// load address register.
+/// Load address register.
 ///
 func (vm *CHIP_8) loadI(address uint) {
 	vm.I = address
 }
 
-/// load address with BCD of vx.
+/// Load address with BCD of vx.
 ///
 func (vm *CHIP_8) loadB(x uint) {
 	n := uint16(vm.V[x])
@@ -712,51 +752,57 @@ func (vm *CHIP_8) loadB(x uint) {
 	vm.Memory[vm.I+2] = byte(b>>0) & 0xF
 }
 
-/// load font sprite for vx into I.
+/// Load font sprite for vx into I.
 ///
 func (vm *CHIP_8) loadF(x uint) {
 	vm.I = uint(vm.V[x]) * 5
 }
 
-/// or vx with vy into vx.
+/// Load high font sprite for vx into I.
+///
+func (vm *CHIP_8) loadHF(x uint) {
+	// TODO:
+}
+
+/// Bitwise or vx with vy into vx.
 ///
 func (vm *CHIP_8) or(x, y uint) {
 	vm.V[x] |= vm.V[y]
 }
 
-/// and vx with vy into vx.
+/// Bitwise and vx with vy into vx.
 ///
 func (vm *CHIP_8) and(x, y uint) {
 	vm.V[x] &= vm.V[y]
 }
 
-/// xor vx with vy into vx.
+/// Bitwise xor vx with vy into vx.
 ///
 func (vm *CHIP_8) xor(x, y uint) {
 	vm.V[x] ^= vm.V[y]
 }
 
-/// shl vx 1 bit, set carry to MSB of vx before shift.
+/// Bitwise shift vx 1 bit, set carry to MSB of vx before shift.
 ///
 func (vm *CHIP_8) shl(x uint) {
 	vm.V[0xF] = vm.V[x] >> 7
 	vm.V[x] <<= 1
 }
 
-/// shr vx 1 bit, set carry to LSB of vx before shift.
+/// Bitwise shift vx 1 bit, set carry to LSB of vx before shift.
 ///
 func (vm *CHIP_8) shr(x uint) {
 	vm.V[0xF] = vm.V[x] & 1
 	vm.V[x] >>= 1
 }
 
-/// add n to vx.
+/// Add n to vx.
 ///
 func (vm *CHIP_8) addX(x uint, b byte) {
 	vm.V[x] += b
 }
 
-/// add vy to vx and set carry.
+/// Add vy to vx and set carry.
 ///
 func (vm *CHIP_8) addXY(x, y uint) {
 	vm.V[x] += vm.V[y]
@@ -768,7 +814,7 @@ func (vm *CHIP_8) addXY(x, y uint) {
 	}
 }
 
-/// add v to i.
+/// Add v to i.
 ///
 func (vm *CHIP_8) addIX(x uint) {
 	vm.I += uint(vm.V[x])
@@ -780,7 +826,7 @@ func (vm *CHIP_8) addIX(x uint) {
 	}
 }
 
-/// subtract vy from vx, set carry if no borrow.
+/// Subtract vy from vx, set carry if no borrow.
 ///
 func (vm *CHIP_8) subXY(x, y uint) {
 	if vm.V[x] >= vm.V[y] {
@@ -792,7 +838,7 @@ func (vm *CHIP_8) subXY(x, y uint) {
 	vm.V[x] -= vm.V[y]
 }
 
-/// subtract vx from vy and store in vx, set carry if no borrow.
+/// Subtract vx from vy and store in vx, set carry if no borrow.
 ///
 func (vm *CHIP_8) subYX(x, y uint) {
 	if vm.V[y] >= vm.V[x] {
@@ -804,93 +850,112 @@ func (vm *CHIP_8) subYX(x, y uint) {
 	vm.V[x] = vm.V[y] - vm.V[x]
 }
 
-/// load a random number & n into vx.
+/// Load a random number & n into vx.
 ///
 func (vm *CHIP_8) loadRandom(x uint, b byte) {
 	vm.V[x] = byte(rand.Int31() & int32(b))
 }
 
-/// draw a sprite at I to video memory at vx, vy.
+/// Draw a sprite in memory to video at x,y with a height of n.
+///
+func (vm *CHIP_8) draw(a, x, y uint, n byte) byte {
+	c := byte(0)
+
+	// byte offset and bit index
+	b := x>>3
+	i := x&7
+
+	// bytes per row
+	p := vm.GetPitch()
+
+	// which scan line will it render on
+	y = y*uint(p)
+
+	// draw each row of the sprite
+	for _, s := range vm.Memory[a: a + uint(n)] {
+		n := y+b
+
+		// clip pixels that are off screen
+		if (n >= 256 && !vm.HighRes) || (n >= 1024 && vm.HighRes) {
+			continue
+		}
+
+		// origin pixel values
+		b0 := vm.Video[n]
+		b1 := vm.Video[n+1]
+
+		// xor pixels
+		vm.Video[n] ^= s >> i
+
+		// are there pixels overlapping next byte?
+		if i > 0 {
+			vm.Video[n+1] ^= s << (8-i)
+		}
+
+		// were any pixels turned off?
+		c |= b0 & ^vm.Video[n]
+		c |= b1 & ^vm.Video[n+1]
+
+		// next scan line
+		y += uint(p)
+	}
+
+	// non-zero if there was a collision
+	return c
+}
+
+/// Draw a sprite at I to video memory at vx, vy.
 ///
 func (vm *CHIP_8) drawSprite(x, y uint, n byte) {
-	if n == 0 && vm.HighRes {
-		vm.drawSpriteEx(x, y)
+	if vm.draw(vm.I, uint(vm.V[x]), uint(vm.V[y]), n) != 0 {
+		vm.V[0xF] = 1
 	} else {
-		c := byte(0)
-
-		// byte offset and bit index
-		b := uint(vm.V[x] >> 3)
-		i := uint(vm.V[x] & 7)
-
-		// bytes per row
-		p := vm.GetPitch()
-
-		// which scan line will it render on
-		y = uint(vm.V[y]) * uint(p)
-
-		// draw each row of the sprite
-		for _, s := range vm.Memory[vm.I: vm.I + uint(n)] {
-			n := y + b
-
-			// clip pixels that are off screen
-			if (n >= 256 && !vm.HighRes) || (n >= 1024 && vm.HighRes) {
-				continue
-			}
-
-			// origin pixel values
-			b0 := vm.Video[n]
-			b1 := vm.Video[n + 1]
-
-			// xor pixels
-			vm.Video[n] ^= s >> i
-
-			// are there pixels overlapping next byte?
-			if i > 0 {
-				vm.Video[n + 1] ^= s << (8 - i)
-			}
-
-			// were any pixels turned off?
-			c |= b0 & ^vm.Video[n]
-			c |= b1 & ^vm.Video[n + 1]
-
-			// next scan line
-			y += uint(p)
-		}
-
-		// set carry flag if any collision occurred
-		if c != 0 {
-			vm.V[0xF] = 1
-		} else {
-			vm.V[0xF] = 0
-		}
+		vm.V[0xF] = 0
 	}
 }
 
-/// draw an extended 16x16 sprite at I to video memory to vx, vy.
+/// Draw an extended 16x16 sprite at I to video memory to vx, vy.
 ///
 func (vm *CHIP_8) drawSpriteEx(x, y uint) {
-	// TODO:
+	c := byte(0)
+	a := vm.I
+
+	// draw sprite columns
+	for i := uint(0);i < 16;i++ {
+		c |= vm.draw(a+(i<<1), uint(vm.V[x]), uint(vm.V[y])+i, 1)
+
+		if vm.HighRes {
+			c |= vm.draw(a+(i<<1)+1, uint(vm.V[x])+8, uint(vm.V[y])+i, 1)
+		}
+	}
+
+	// set the collision flag
+	if c != 0 {
+		vm.V[0xF] = 1
+	} else {
+		vm.V[0xF] = 0
+	}
 }
 
-/// save registers v0..vx to I.
+/// Save registers v0..vx to I.
 ///
 func (vm *CHIP_8) saveRegs(x uint) {
 	copy(vm.Memory[vm.I:], vm.V[:x+1])
 }
 
-/// load registers v0..vx from I.
+/// Load registers v0..vx from I.
 ///
 func (vm *CHIP_8) loadRegs(x uint) {
 	copy(vm.V[:], vm.Memory[vm.I:vm.I+x+1])
 }
 
-/// store v0..v7 in the HP-RPL user flags.
+/// Store v0..v7 in the HP-RPL user flags.
 ///
 func (vm *CHIP_8) storeR(x uint) {
 	copy(vm.R[:], vm.V[:x + 1])
 }
 
-/// read the HP-RPL user flags into v0..v7.
+/// Read the HP-RPL user flags into v0..v7.
 ///
 func (vm *CHIP_8) readR(x uint) {
 	copy(vm.V[:], vm.R[:x + 1])

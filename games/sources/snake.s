@@ -48,25 +48,14 @@
 loop:
     call        user_input
     call        move
-    call        write_head
     call        check_bounds
+    call        write_head
     call        draw_head
     call        erase_tail
 
     jp          loop
 
 user_input:
-    ld          v0, 0
-    sknp        v0
-
-    break
-    scl
-    ld          v0, 1
-    sknp        v0
-    break
-    scr
-
-
     ld          v0, 5 ; up
     sknp        v0
     ld          v7, 0
@@ -229,15 +218,13 @@ rep:
     ret
 
 game_over:
-    ld          v0, 30
+    ld          v0, 15
     ld          st, v0
-
-done:
-    jp          done
+    exit
 
 
 life_bar:
-    dw          #F0F0,#F0F0,#F0F0,#F0F0,#F0F0,#F0F0,#F0F0,#F0F0
+    db          $11111111
 start:
     db          $111.....
 dot:

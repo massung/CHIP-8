@@ -84,16 +84,10 @@ func main() {
 	fmt.Println("All rights reserved")
 	fmt.Println()
 
-	// load either the file specified or default to PONG
-	if File != "" {
-		fmt.Println("Loading", filepath.Base(File))
-	} else {
-		fmt.Println("Loading PONG")
-	}
-
-	// create a new CHIP-8 virtual machine, load the ROM..
+	// create a new CHIP-8 virtual machine
 	Load()
 
+	// initialize sub-systems
 	InitScreen()
 	InitAudio()
 	InitFont()
@@ -118,6 +112,7 @@ func main() {
 
 			switch res.(type) {
 			case chip8.Breakpoint:
+				fmt.Println()
 				fmt.Println(res.Error())
 
 				// break the emulation
@@ -128,32 +123,44 @@ func main() {
 }
 
 func Load() {
+	var size int
+
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println(r)
 
 			// load the empty, dummy rom
-			VM = chip8.LoadROM(chip8.Dummy)
+			VM, _ = chip8.LoadROM(chip8.Dummy)
 		}
 	}()
 
 	if File == "" {
-		VM = chip8.LoadROM(chip8.Pong)
+		fmt.Print("Loading PONG... ")
+		VM, size = chip8.LoadROM(chip8.Pong)
 	} else {
 		if Assemble {
+			fmt.Print("Assembling ", filepath.Base(File), "... ")
+
+			// assemble the source file
 			asm := chip8.Assemble(File)
 
 			// load the assembled program
-			VM = chip8.LoadROM(asm.ROM)
+			VM, size = chip8.LoadROM(asm.ROM)
 
 			// add all the breakpoints from the assembly
 			for _, b := range asm.Breakpoints {
 				VM.AddBreakpoint(b)
 			}
 		} else {
-			VM = chip8.LoadFile(File)
+			fmt.Print("Loading ", filepath.Base(File), "... ")
+
+			// read the ROM file off disk
+			VM, size = chip8.LoadFile(File)
 		}
 	}
+
+	// show how many bytes were loaded
+	fmt.Println(size, "bytes")
 }
 
 func Refresh() {

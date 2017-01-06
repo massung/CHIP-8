@@ -37,6 +37,7 @@ const (
 	TOKEN_B
 	TOKEN_I
 	TOKEN_F
+	TOKEN_HF
 	TOKEN_K
 	TOKEN_DT
 	TOKEN_ST
@@ -132,9 +133,6 @@ func Assemble(file string) *Assembly {
 	for _, tokens := range lines {
 		rom = assembleInstruction(tokens, rom, &labels)
 	}
-
-	// output result
-	fmt.Println("Assembled", len(rom) - 0x200, "bytes")
 
 	// done, return only the program memory
 	return &Assembly{
@@ -289,13 +287,15 @@ func readLabel(r []byte) (token, []byte) {
 		return token{typ: TOKEN_B}, r[i:]
 	case "F":
 		return token{typ: TOKEN_F}, r[i:]
+	case "HF":
+		return token{typ: TOKEN_HF}, r[i:]
 	case "K":
 		return token{typ: TOKEN_K}, r[i:]
 	case "D", "DT":
 		return token{typ: TOKEN_DT}, r[i:]
 	case "S", "ST":
 		return token{typ: TOKEN_ST}, r[i:]
-	case "CLS", "RET", "LOW", "HIGH", "SCU", "SCD", "SCR", "SCL", "SYS", "JP", "CALL", "SE", "SNE", "SKP", "SKNP", "LD", "OR", "AND", "XOR", "ADD", "SUB", "SUBN", "SHR", "SHL", "RND", "DRW", "DB", "DW":
+	case "CLS", "RET", "EXIT", "LOW", "HIGH", "SCU", "SCD", "SCR", "SCL", "SYS", "JP", "CALL", "SE", "SNE", "SKP", "SKNP", "LD", "OR", "AND", "XOR", "ADD", "SUB", "SUBN", "SHR", "SHL", "RND", "DRW", "DB", "DW":
 		return token{typ: TOKEN_INSTRUCTION, val: s}, r[i:]
 	case "BREAK", "BRK":
 		return token{typ: TOKEN_BREAK, val: strings.TrimSpace(string(r[i:]))}, nil
@@ -384,6 +384,8 @@ func assembleInstruction(tokens []token, rom []byte, labels *map[string]int) []b
 			return assembleCLS(tokens[1:], rom, labels)
 		case "RET":
 			return assembleRET(tokens[1:], rom, labels)
+		case "EXIT":
+			return assembleEXIT(tokens[1:], rom, labels)
 		case "LOW":
 			return assembleLOW(tokens[1:], rom, labels)
 		case "HIGH":
@@ -507,6 +509,16 @@ func assembleRET(tokens []token, rom []byte, labels *map[string]int) []byte {
 	}
 
 	return append(rom, 0x00, 0xEE)
+}
+
+/// Assemble an EXIT instruction.
+///
+func assembleEXIT(tokens []token, rom []byte, labels *map[string]int) []byte {
+	if len(tokens) > 0 {
+		panic("illegal instruction")
+	}
+
+	return append(rom, 0x00, 0xFD)
 }
 
 /// Assemble a LOW instruction.
@@ -900,6 +912,12 @@ func assembleLD(tokens []token, rom []byte, labels *map[string]int) []byte {
 		x := ops[1].val.(int)
 
 		return append(rom, 0xF0|byte(x), 0x29)
+	}
+
+	if ops, ok := matchOperands(tokens, labels, TOKEN_HF, TOKEN_V); ok {
+		x := ops[1].val.(int)
+
+		return append(rom, 0xF0|byte(x), 0x30)
 	}
 
 	if ops, ok := matchOperands(tokens, labels, TOKEN_B, TOKEN_V); ok {
