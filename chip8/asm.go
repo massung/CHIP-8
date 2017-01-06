@@ -33,6 +33,7 @@ const (
 	TOKEN_COLON
 	TOKEN_INSTRUCTION
 	TOKEN_V
+	TOKEN_R
 	TOKEN_B
 	TOKEN_I
 	TOKEN_F
@@ -280,6 +281,8 @@ func readLabel(r []byte) (token, []byte) {
 		return token{typ: TOKEN_V, val: 14}, r[i:]
 	case "VF":
 		return token{typ: TOKEN_V, val: 15}, r[i:]
+	case "R":
+		return token{typ: TOKEN_R}, r[i:]
 	case "I":
 		return token{typ: TOKEN_I}, r[i:]
 	case "B":
@@ -292,7 +295,7 @@ func readLabel(r []byte) (token, []byte) {
 		return token{typ: TOKEN_DT}, r[i:]
 	case "S", "ST":
 		return token{typ: TOKEN_ST}, r[i:]
-	case "CLS", "RET", "LOW", "HIGH", "SYS", "JP", "CALL", "SE", "SNE", "SKP", "SKNP", "LD", "OR", "AND", "XOR", "ADD", "SUB", "SUBN", "SHR", "SHL", "RND", "DRW", "DB", "DW":
+	case "CLS", "RET", "LOW", "HIGH", "SCU", "SCD", "SCR", "SCL", "SYS", "JP", "CALL", "SE", "SNE", "SKP", "SKNP", "LD", "OR", "AND", "XOR", "ADD", "SUB", "SUBN", "SHR", "SHL", "RND", "DRW", "DB", "DW":
 		return token{typ: TOKEN_INSTRUCTION, val: s}, r[i:]
 	case "BREAK", "BRK":
 		return token{typ: TOKEN_BREAK, val: strings.TrimSpace(string(r[i:]))}, nil
@@ -385,6 +388,14 @@ func assembleInstruction(tokens []token, rom []byte, labels *map[string]int) []b
 			return assembleLOW(tokens[1:], rom, labels)
 		case "HIGH":
 			return assembleHIGH(tokens[1:], rom, labels)
+		case "SCU":
+			return assembleSCU(tokens[1:], rom, labels)
+		case "SCD":
+			return assembleSCD(tokens[1:], rom, labels)
+		case "SCR":
+			return assembleSCR(tokens[1:], rom, labels)
+		case "SCL":
+			return assembleSCL(tokens[1:], rom, labels)
 		case "SYS":
 			return assembleSYS(tokens[1:], rom, labels)
 		case "JP":
@@ -516,6 +527,54 @@ func assembleHIGH(tokens []token, rom []byte, labels *map[string]int) []byte {
 	}
 
 	return append(rom, 0x00, 0xFF)
+}
+
+/// Assemble a SCU instruction.
+///
+func assembleSCU(tokens []token, rom []byte, labels *map[string]int) []byte {
+	if ops, ok := matchOperands(tokens, labels, TOKEN_LIT); ok {
+		n := ops[0].val.(int)
+
+		if n < 0x10 {
+			return append(rom, 0x00, 0xB0 | byte(n))
+		}
+	}
+
+	return append(rom, 0x00, 0xFF)
+}
+
+/// Assemble a SCD instruction.
+///
+func assembleSCD(tokens []token, rom []byte, labels *map[string]int) []byte {
+	if ops, ok := matchOperands(tokens, labels, TOKEN_LIT); ok {
+		n := ops[0].val.(int)
+
+		if n < 0x10 {
+			return append(rom, 0x00, 0xC0 | byte(n))
+		}
+	}
+
+	return append(rom, 0x00, 0xFF)
+}
+
+/// Assemble a SCR instruction.
+///
+func assembleSCR(tokens []token, rom []byte, labels *map[string]int) []byte {
+	if len(tokens) > 0 {
+		panic("illegal instruction")
+	}
+
+	return append(rom, 0x00, 0xFB)
+}
+
+/// Assemble a SCL instruction.
+///
+func assembleSCL(tokens []token, rom []byte, labels *map[string]int) []byte {
+	if len(tokens) > 0 {
+		panic("illegal instruction")
+	}
+
+	return append(rom, 0x00, 0xFC)
 }
 
 /// Assemble a SYS instruction
@@ -862,6 +921,22 @@ func assembleLD(tokens []token, rom []byte, labels *map[string]int) []byte {
 
 		if ops[1].val.(token).typ == TOKEN_I {
 			return append(rom, 0xF0|byte(x), 0x65)
+		}
+	}
+
+	if ops, ok := matchOperands(tokens, labels, TOKEN_R, TOKEN_V); ok {
+		x := ops[1].val.(int)
+
+		if x < 8 {
+			return append(rom, 0xF0|byte(x), 0x75)
+		}
+	}
+
+	if ops, ok := matchOperands(tokens, labels, TOKEN_V, TOKEN_R); ok {
+		x := ops[0].val.(int)
+
+		if x < 8 {
+			return append(rom, 0xF0|byte(x), 0x85)
 		}
 	}
 

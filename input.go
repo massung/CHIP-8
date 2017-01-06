@@ -53,6 +53,10 @@ func ProcessEvents() bool {
 					DebugHelp()
 				case sdl.SCANCODE_SPACE:
 					Paused = !Paused
+				case sdl.SCANCODE_LEFTBRACKET:
+					VM.DecSpeed()
+				case sdl.SCANCODE_RIGHTBRACKET:
+					VM.IncSpeed()
 				case sdl.SCANCODE_F10:
 					if Paused {
 						VM.Step()

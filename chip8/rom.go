@@ -69,7 +69,7 @@ var rca_1802 = [0x200]byte{
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 }
 
-/// A "dummy" that does nothing.
+/// A "dummy" program that does nothing but loop in on itself.
 ///
 var Dummy = []byte{0x12, 0x00}
 

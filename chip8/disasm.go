@@ -37,6 +37,16 @@ func (vm *CHIP_8) Disassemble(i uint) string {
 		return fmt.Sprintf("%04X - LOW", i)
 	} else if inst == 0x00FF {
 		return fmt.Sprintf("%04X - HIGH", i)
+	} else if inst == 0x00FB {
+		return fmt.Sprintf("%04X - SCR", i)
+	} else if inst == 0x00FC {
+		return fmt.Sprintf("%04X - SCL", i)
+	} else if inst == 0x00FD {
+		return fmt.Sprintf("%04X - EXIT", i)
+	} else if inst&0xFFF0 == 0x00B0 {
+		return fmt.Sprintf("%04X - SCU    %d", i, n)
+	} else if inst&0xFFF0 == 0x00C0 {
+		return fmt.Sprintf("%04X - SCD    %d", i, n)
 	} else if inst&0xF000 == 0x0000 {
 		return fmt.Sprintf("%04X - SYS    #%04X", i, a)
 	} else if inst&0xF000 == 0x1000 {
@@ -103,6 +113,10 @@ func (vm *CHIP_8) Disassemble(i uint) string {
 		return fmt.Sprintf("%04X - LD     [I], V%X", i, x)
 	} else if inst&0xF0FF == 0xF065 {
 		return fmt.Sprintf("%04X - LD     V%X, [I]", i, x)
+	} else if inst&0xF0FF == 0xF075 {
+		return fmt.Sprintf("%04X - LD     R, V%X", i, x)
+	} else if inst&0xF0FF == 0xF085 {
+		return fmt.Sprintf("%04X - LD     V%X, R", i, x)
 	}
 
 	// unknown instruction

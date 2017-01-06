@@ -59,19 +59,19 @@ func InitDebug() {
 func DebugHelp() {
 	fmt.Println()
 	fmt.Println("Virtual keys:")
-	fmt.Println(" 1-2-3-4")
-	fmt.Println(" Q-W-E-R")
-	fmt.Println(" A-S-D-F")
-	fmt.Println(" Z-X-C-V")
+	fmt.Println(" 1-2-3-4 - 1-2-3-C")
+	fmt.Println(" Q-W-E-R - 4-5-6-D")
+	fmt.Println(" A-S-D-F - 7-8-9-E")
+	fmt.Println(" Z-X-C-V - A-0-B-F")
 	fmt.Println()
 	fmt.Println("Emulation keys:")
-	fmt.Println(" F1     - Help")
-	fmt.Println(" PG U/D - Scroll log")
-	fmt.Println(" BACK   - Reboot")
-	fmt.Println(" SPACE  - Pause/debug")
-	fmt.Println(" F10    - Step")
-	fmt.Println(" F11    - Dump memory")
-	fmt.Println(" F12    - Screenshot")
+	fmt.Println(" [ / ]   - Adjust speed")
+	fmt.Println(" PG U/D  - Scroll log")
+	fmt.Println(" BACK    - Reboot")
+	fmt.Println(" SPACE   - Pause/break")
+	fmt.Println(" F10     - Step")
+	fmt.Println(" F11     - Memory")
+	fmt.Println(" F12     - Screenshot")
 }
 
 /// DebugAssembly renders the disassembled instructions around
@@ -111,7 +111,7 @@ func DebugRegisters(x, y int) {
 		DrawText(fmt.Sprintf("  V%X - #%02X", i, VM.V[i]), x, y + i * 10)
 	}
 
-	// shift over for v-registers
+	// shift over to next column
 	x += 98
 
 	// show the v-registers
@@ -120,6 +120,11 @@ func DebugRegisters(x, y int) {
 	DrawText(fmt.Sprintf("I  - #%04X", VM.I), x, y + 30)
 	DrawText(fmt.Sprintf("DT - #%02X", VM.GetDelayTimer()), x, y + 50)
 	DrawText(fmt.Sprintf("ST - #%02X", VM.GetSoundTimer()), x, y + 60)
+
+	// show the HP-RPL user flags
+	for i := 0;i < 8;i++ {
+		DrawText(fmt.Sprintf("R%d - #%02X", i, VM.R[i]), x, y+80+i*10)
+	}
 }
 
 /// Show a memory dump at I. Useful for sprite debugging.

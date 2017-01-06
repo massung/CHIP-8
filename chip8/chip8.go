@@ -24,9 +24,10 @@ type CHIP_8 struct {
 	/// Video memory for CHIP-8 (64x32 bits). Each bit represents a
 	/// single pixel. It is stored MSB first. For example, pixel <0,0>
 	/// is bit 0x80 of byte 0. 4x the video memory is used for the
-	/// CHIP-48, which is 128x64 resolution.
+	/// CHIP-48, which is 128x64 resolution. There is an extra byte
+	/// to prevent overflows.
 	///
-	Video [0x400]byte
+	Video [0x401]byte
 
 	/// PC is the program counter. All programs begin at 0x200.
 	///
@@ -45,13 +46,17 @@ type CHIP_8 struct {
 	///
 	V [16]byte
 
-	/// The delay timer register. It is set to a time (in ns) in the future
-	/// and compared against the current time.
+	/// R are the 8, HP-RPL user flags.
+	///
+	R [8]byte
+
+	/// DT is the delay timer register. It is set to a time (in ns) in the
+	/// future and compared against the current time.
 	///
 	DT int64
 
-	/// The sound timer register. It is set to a time (in ns) in the future
-	/// and compared against the current time.
+	/// ST is the sound timer register. It is set to a time (in ns) in the
+	/// future and compared against the current time.
 	///
 	ST int64
 
@@ -59,12 +64,15 @@ type CHIP_8 struct {
 	///
 	Clock int64
 
-	/// Cycles is how many clock cycles have been processed. The RCA 1802
-	/// ran at 4-5 MHz, and each instruction took 16-24 clock cycles. Best
-	/// estimations are the 1802 could interpret 500 CHIP-8 instructions
-	/// per second.
+	/// Cycles is how many clock cycles have been processed. It is assumed
+	/// once clock cycle per instruction.
 	///
 	Cycles int64
+
+	/// Speed is how many cycles (instructions) should execute per second.
+	/// By default this is 600.
+	///
+	Speed int64
 
 	/// W is the wait key (V-register) pointer. When waiting for a key
 	/// to be pressed, it will be set to &V[0..F].
@@ -142,7 +150,7 @@ func (vm *CHIP_8) Reset() {
 	}
 
 	// reset video memory
-	vm.Video = [0x400]byte{}
+	vm.Video = [0x401]byte{}
 
 	// reset keys
 	vm.Keys = [16]bool{}
@@ -157,6 +165,9 @@ func (vm *CHIP_8) Reset() {
 	// reset virtual registers
 	vm.V = [16]byte{}
 
+	// reset HP-RPL user flags
+	vm.R = [8]byte{}
+
 	// reset timer registers
 	vm.DT = 0
 	vm.ST = 0
@@ -164,6 +175,7 @@ func (vm *CHIP_8) Reset() {
 	// reset the clock and cycles executed
 	vm.Clock = time.Now().UnixNano()
 	vm.Cycles = 0
+	vm.Speed = 600
 
 	// not waiting for a key
 	vm.W = nil
@@ -182,6 +194,30 @@ func (vm *CHIP_8) Save(file string) {
 ///
 func (vm *CHIP_8) Restore(file string) {
 	// TODO:
+}
+
+/// IncSpeed increases CHIP-8 virtual machine performance.
+///
+func (vm *CHIP_8) IncSpeed() {
+	if vm.Speed < 1000 {
+		vm.Speed += 100
+
+		// reset the clock
+		vm.Clock = time.Now().UnixNano()
+		vm.Cycles = 0
+	}
+}
+
+/// DecSpeed lowers CHIP-8 virtual machine performance.
+///
+func (vm *CHIP_8) DecSpeed() {
+	if vm.Speed > 100 {
+		vm.Speed -= 100
+
+		// reset the clock
+		vm.Clock = time.Now().UnixNano()
+		vm.Cycles = 0
+	}
 }
 
 /// AddBreakpoint at a ROM address to the CHIP-8 virtual machine.
@@ -256,13 +292,23 @@ func (vm *CHIP_8) GetResolution() (uint, uint) {
 	return 64, 32
 }
 
+/// GetPitch returns the number of bytes in a single scan line.
+///
+func (vm *CHIP_8) GetPitch() int {
+	if vm.HighRes {
+		return 16
+	} else {
+		return 8
+	}
+}
+
 /// Process CHIP-8 emulation. This will execute until the clock is caught up.
 ///
 func (vm *CHIP_8) Process(paused bool) error {
 	now := time.Now().UnixNano()
 
 	// calculate how many cycles should have been executed
-	count := (now - vm.Clock) * 500 / 1000000000
+	count := (now - vm.Clock) * vm.Speed / 1000000000
 
 	// if paused, count cycles without stepping
 	if paused {
@@ -309,10 +355,18 @@ func (vm *CHIP_8) Step() error {
 		vm.cls()
 	} else if inst == 0x00EE {
 		vm.ret()
+	} else if inst == 0x00FB {
+		vm.scrollRight()
+	} else if inst == 0x00FC {
+		vm.scrollLeft()
 	} else if inst == 0x00FE {
 		vm.low()
 	} else if inst == 0x00FF {
 		vm.high()
+	} else if inst&0xFFF0 == 0x00B0 {
+		vm.scrollUp(n)
+	} else if inst&0xFFF0 == 0x00C0 {
+		vm.scrollDown(n)
 	} else if inst&0xF000 == 0x0000 {
 		vm.sys(a)
 	} else if inst&0xF000 == 0x1000 {
@@ -354,9 +408,9 @@ func (vm *CHIP_8) Step() error {
 	} else if inst&0xF000 == 0xB000 {
 		vm.jumpV0(a)
 	} else if inst&0xF000 == 0xC000 {
-		vm.rnd(x, b)
+		vm.loadRandom(x, b)
 	} else if inst&0xF000 == 0xD000 {
-		vm.drw(x, y, n)
+		vm.drawSprite(x, y, n)
 	} else if inst&0xF0FF == 0xE09E {
 		vm.skipIfPressed(x)
 	} else if inst&0xF0FF == 0xE0A1 {
@@ -379,6 +433,10 @@ func (vm *CHIP_8) Step() error {
 		vm.saveRegs(x)
 	} else if inst&0xF0FF == 0xF065 {
 		vm.loadRegs(x)
+	} else if inst&0xF0FF == 0xF075 {
+		vm.storeR(x)
+	} else if inst&0xF0FF == 0xF085 {
+		vm.readR(x)
 	} else {
 		return fmt.Errorf("Invalid opcode: %04X", inst)
 	}
@@ -464,6 +522,64 @@ func (vm *CHIP_8) low() {
 ///
 func (vm *CHIP_8) high() {
 	vm.HighRes = true
+}
+
+/// scroll n pixels up.
+///
+func (vm *CHIP_8) scrollUp(n byte) {
+	p := vm.GetPitch()
+
+	// shift all the pixels up
+	copy(vm.Video[:], vm.Video[int(n)*p:])
+
+	// wipe the bottom-most pixels
+	for i := 0x400-int(n)*p;i < 0x400;i++ {
+		vm.Video[i] = 0
+	}
+}
+
+/// scroll n pixels down.
+///
+func (vm *CHIP_8) scrollDown(n byte) {
+	p := vm.GetPitch()
+
+	// shift all the pixels down
+	copy(vm.Video[int(n)*p:], vm.Video[:])
+
+	// wipe the top-most pixels
+	for i := int(0);i < int(n)*p;i++ {
+		vm.Video[i] = 0
+	}
+}
+
+/// scroll 4 pixels right.
+///
+func (vm *CHIP_8) scrollRight() {
+	p := vm.GetPitch()-1
+
+	for i := 0x3FF;i >= 0;i-- {
+		vm.Video[i] >>= 4
+
+		// get the lower 4 bits from the previous byte
+		if i&p > 0 {
+			vm.Video[i] |= (vm.Video[i-1] & 0xF) << 4
+		}
+	}
+}
+
+/// scroll 4 pixels left.
+///
+func (vm *CHIP_8) scrollLeft() {
+	p := vm.GetPitch()-1
+
+	for i := 0;i < 0x400;i++ {
+		vm.Video[i] <<= 4
+
+		// get the upper 4 bits from the next byte
+		if i&p < p {
+			vm.Video[i] |= vm.Video[i+1] >> 4
+		}
+	}
 }
 
 /// jump to address.
@@ -656,6 +772,12 @@ func (vm *CHIP_8) addXY(x, y uint) {
 ///
 func (vm *CHIP_8) addIX(x uint) {
 	vm.I += uint(vm.V[x])
+
+	if vm.I >= 0x1000 {
+		vm.V[0xF] = 1
+	} else {
+		vm.V[0xF] = 0
+	}
 }
 
 /// subtract vy from vx, set carry if no borrow.
@@ -684,75 +806,92 @@ func (vm *CHIP_8) subYX(x, y uint) {
 
 /// load a random number & n into vx.
 ///
-func (vm *CHIP_8) rnd(x uint, b byte) {
+func (vm *CHIP_8) loadRandom(x uint, b byte) {
 	vm.V[x] = byte(rand.Int31() & int32(b))
 }
 
 /// draw a sprite at I to video memory at vx, vy.
 ///
-func (vm *CHIP_8) drw(x, y uint, n byte) {
-	c := byte(0)
-
-	// video memory byte and offset
-	b := uint(vm.V[x] >> 3)
-	i := uint(vm.V[x] & 7)
-
-	// bytes per row
-	w, _ := vm.GetResolution()
-	p := w >> 3
-
-	// which scan line will it render on
-	y = uint(vm.V[y])*p
-
-	// draw each row of the sprite
-	for _, s := range vm.Memory[vm.I : vm.I+uint(n)] {
-		n := y + b
-
-		// clip pixels that are off screen
-		if (n >= 256 && !vm.HighRes) || (n >= 1024 && vm.HighRes) {
-			continue
-		}
-
-		// origin pixel values
-		b0 := vm.Video[n]
-		b1 := vm.Video[n+1]
-
-		// xor pixels
-		vm.Video[n] ^= s >> i
-
-		// are there pixels overlapping next byte?
-		if i > 0 {
-			vm.Video[n+1] ^= s << (8 - i)
-		}
-
-		// were any pixels turned off?
-		c |= b0 & ^vm.Video[n]
-		c |= b1 & ^vm.Video[n+1]
-
-		// next scan line
-		y += uint(p)
-	}
-
-	// set carry flag if any collision occurred
-	if c != 0 {
-		vm.V[0xF] = 1
+func (vm *CHIP_8) drawSprite(x, y uint, n byte) {
+	if n == 0 && vm.HighRes {
+		vm.drawSpriteEx(x, y)
 	} else {
-		vm.V[0xF] = 0
+		c := byte(0)
+
+		// byte offset and bit index
+		b := uint(vm.V[x] >> 3)
+		i := uint(vm.V[x] & 7)
+
+		// bytes per row
+		p := vm.GetPitch()
+
+		// which scan line will it render on
+		y = uint(vm.V[y]) * uint(p)
+
+		// draw each row of the sprite
+		for _, s := range vm.Memory[vm.I: vm.I + uint(n)] {
+			n := y + b
+
+			// clip pixels that are off screen
+			if (n >= 256 && !vm.HighRes) || (n >= 1024 && vm.HighRes) {
+				continue
+			}
+
+			// origin pixel values
+			b0 := vm.Video[n]
+			b1 := vm.Video[n + 1]
+
+			// xor pixels
+			vm.Video[n] ^= s >> i
+
+			// are there pixels overlapping next byte?
+			if i > 0 {
+				vm.Video[n + 1] ^= s << (8 - i)
+			}
+
+			// were any pixels turned off?
+			c |= b0 & ^vm.Video[n]
+			c |= b1 & ^vm.Video[n + 1]
+
+			// next scan line
+			y += uint(p)
+		}
+
+		// set carry flag if any collision occurred
+		if c != 0 {
+			vm.V[0xF] = 1
+		} else {
+			vm.V[0xF] = 0
+		}
 	}
+}
+
+/// draw an extended 16x16 sprite at I to video memory to vx, vy.
+///
+func (vm *CHIP_8) drawSpriteEx(x, y uint) {
+	// TODO:
 }
 
 /// save registers v0..vx to I.
 ///
 func (vm *CHIP_8) saveRegs(x uint) {
-	for i := uint(0); i <= x; i++ {
-		vm.Memory[vm.I+i] = vm.V[i]
-	}
+	copy(vm.Memory[vm.I:], vm.V[:x+1])
 }
 
 /// load registers v0..vx from I.
 ///
 func (vm *CHIP_8) loadRegs(x uint) {
-	for i := uint(0); i <= x; i++ {
-		vm.V[i] = vm.Memory[vm.I+i]
-	}
+	copy(vm.V[:], vm.Memory[vm.I:vm.I+x+1])
+}
+
+/// store v0..v7 in the HP-RPL user flags.
+///
+func (vm *CHIP_8) storeR(x uint) {
+	copy(vm.R[:], vm.V[:x + 1])
+}
+
+/// read the HP-RPL user flags into v0..v7.
+///
+func (vm *CHIP_8) readR(x uint) {
+	copy(vm.V[:], vm.R[:x + 1])
 }

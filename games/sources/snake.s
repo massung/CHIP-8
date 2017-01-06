@@ -9,6 +9,7 @@
 ; v0-v3 = scratch
 ; v4    = x
 ; v5    = y
+; v6    = score
 ; v7    = direction (0=up, 1=right, 2=down, 3=left)
 ; v8    = food x
 ; v9    = food y
@@ -25,6 +26,7 @@
     ; the snake has an initial length of 2
     ld          va, 4
     ld          vb, 0
+    ld          v6, 0
 
     ; load the initial snake tail and head into memory
     ld          i, snake_tail
@@ -40,6 +42,9 @@
     ; spawn the initial fool pellet
     call        spawn_food
 
+    ; show the initial score
+    call        draw_score
+
 loop:
     call        user_input
     call        move
@@ -51,6 +56,17 @@ loop:
     jp          loop
 
 user_input:
+    ld          v0, 0
+    sknp        v0
+
+    break
+    scl
+    ld          v0, 1
+    sknp        v0
+    break
+    scr
+
+
     ld          v0, 5 ; up
     sknp        v0
     ld          v7, 0
@@ -119,6 +135,11 @@ draw_head:
     ld          v0, 2
     ld          st, v0
 
+    ; erase the current score and increment
+    call        draw_score
+    add         v6, 1
+    call        draw_score
+
     ; grow the snake by 2.. do this at the tail
     ; and write two dummy positions into memory
     add         vb, #fc ; -4
@@ -147,14 +168,14 @@ erase_tail:
     ret
 
 check_bounds:
-    sne v4, #ff
-    jp game_over
-    sne v4, 64
-    jp game_over
-    sne v5, #ff
-    jp game_over
-    sne v5, 32
-    jp game_over
+    sne         v4, #ff
+    jp          game_over
+    sne         v4, 64
+    jp          game_over
+    sne         v5, #ff
+    jp          game_over
+    sne         v5, 32
+    jp          game_over
     ret
 
 spawn_food:
@@ -174,13 +195,8 @@ spawn_food:
     jp          spawn_food
 
 draw_score:
-    ld          v0, va
-    sub         v0, vb
-    shr         v0
-
-    ; convert the score to bcd and read it
     ld          i, score
-    ld          b, v0
+    ld          b, v6
     ld          v2, [i]
 
     ; where to draw the score
@@ -213,7 +229,8 @@ rep:
     ret
 
 game_over:
-    ; TODO: show some kind of score... ?
+    ld          v0, 30
+    ld          st, v0
 
 done:
     jp          done
