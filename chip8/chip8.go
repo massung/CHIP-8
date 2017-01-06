@@ -83,9 +83,9 @@ type CHIP_8 struct {
 	///
 	Keys [16]bool
 
-	/// True if the CHIP-8 is in high-res (128x64) mode.
+	/// Number of bytes per scan line.
 	///
-	HighRes bool
+	Pitch uint
 
 	/// A list of instruction address breakpoints.
 	///
@@ -193,7 +193,7 @@ func (vm *CHIP_8) Reset() {
 	vm.W = nil
 
 	// not in high-res mode
-	vm.HighRes = false
+	vm.Pitch = 8
 }
 
 /// Save the current state of the CHIP-8 virtual machine.
@@ -297,21 +297,7 @@ func (vm *CHIP_8) GetSoundTimer() byte {
 /// GetResolution returns the width and height of the CHIP-8.
 ///
 func (vm *CHIP_8) GetResolution() (uint, uint) {
-	if vm.HighRes {
-		return 128, 64
-	}
-
-	return 64, 32
-}
-
-/// GetPitch returns the number of bytes in a single scan line.
-///
-func (vm *CHIP_8) GetPitch() int {
-	if vm.HighRes {
-		return 16
-	} else {
-		return 8
-	}
+	return vm.Pitch<<3, vm.Pitch<<2
 }
 
 /// Process CHIP-8 emulation. This will execute until the clock is caught up.
@@ -539,30 +525,27 @@ func (vm *CHIP_8) exit() {
 /// Set low res mode.
 ///
 func (vm *CHIP_8) low() {
-	vm.HighRes = false
+	vm.Pitch = 8
 }
 
 /// Set high res mode.
 ///
 func (vm *CHIP_8) high() {
-	vm.HighRes = true
+	vm.Pitch = 16
 }
 
 /// Scroll n pixels up.
 ///
 func (vm *CHIP_8) scrollUp(n byte) {
-	p := vm.GetPitch()
-
-	// shift half the lines in low res mode (note: tv emu half-pixel shift odd?)
-	if !vm.HighRes {
+	if vm.Pitch == 8 {
 		n >>= 1
 	}
 
 	// shift all the pixels up
-	copy(vm.Video[:], vm.Video[int(n)*p:])
+	copy(vm.Video[:], vm.Video[uint(n)*vm.Pitch:])
 
 	// wipe the bottom-most pixels
-	for i := 0x400-int(n)*p;i < 0x400;i++ {
+	for i := 0x400-uint(n)*vm.Pitch;i < 0x400;i++ {
 		vm.Video[i] = 0
 	}
 }
@@ -570,18 +553,15 @@ func (vm *CHIP_8) scrollUp(n byte) {
 /// Scroll n pixels down.
 ///
 func (vm *CHIP_8) scrollDown(n byte) {
-	p := vm.GetPitch()
-
-	// shift half the lines in low res mode (note: tv emu half-pixel shift odd?)
-	if !vm.HighRes {
+	if vm.Pitch == 8 {
 		n >>= 1
 	}
 
 	// shift all the pixels down
-	copy(vm.Video[int(n)*p:], vm.Video[:])
+	copy(vm.Video[uint(n)*vm.Pitch:], vm.Video[:])
 
 	// wipe the top-most pixels
-	for i := int(0);i < int(n)*p;i++ {
+	for i := uint(0);i < uint(n)*vm.Pitch;i++ {
 		vm.Video[i] = 0
 	}
 }
@@ -589,17 +569,14 @@ func (vm *CHIP_8) scrollDown(n byte) {
 /// Scroll pixels right.
 ///
 func (vm *CHIP_8) scrollRight() {
-	p := vm.GetPitch()
+	shift := vm.Pitch>>2
 
-	// how many pixels to shift
-	shift := uint(p >> 2)
-
-	for i := 0x3FF;i >= 0;i-- {
+	for i := uint(0x3FF);i >= 0;i-- {
 		vm.Video[i] >>= shift
 
 		// get the lower bits from the previous byte
-		if i&(p-1) > 0 {
-			vm.Video[i] |= vm.Video[i-1] << (8 - shift)
+		if i&(vm.Pitch-1) > 0 {
+			vm.Video[i] |= vm.Video[i-1] << (8-shift)
 		}
 	}
 }
@@ -607,17 +584,14 @@ func (vm *CHIP_8) scrollRight() {
 /// Scroll pixels left.
 ///
 func (vm *CHIP_8) scrollLeft() {
-	p := vm.GetPitch()
+	shift := vm.Pitch>>2
 
-	// how many pixels to shift
-	shift := uint(p >> 2)
-
-	for i := 0;i < 0x400;i++ {
+	for i := uint(0);i < 0x400;i++ {
 		vm.Video[i] <<= shift
 
 		// get the upper bits from the next byte
-		if i&(p-1) < (p-1) {
-			vm.Video[i] |= vm.Video[i+1] >> (8 - shift)
+		if i&(vm.Pitch-1) < (vm.Pitch-1) {
+			vm.Video[i] |= vm.Video[i+1] >> (8-shift)
 		}
 	}
 }
@@ -865,18 +839,15 @@ func (vm *CHIP_8) draw(a, x, y uint, n byte) byte {
 	b := x>>3
 	i := x&7
 
-	// bytes per row
-	p := vm.GetPitch()
-
 	// which scan line will it render on
-	y = y*uint(p)
+	y = y*vm.Pitch
 
 	// draw each row of the sprite
 	for _, s := range vm.Memory[a: a + uint(n)] {
 		n := y+b
 
 		// clip pixels that are off screen
-		if (n >= 256 && !vm.HighRes) || (n >= 1024 && vm.HighRes) {
+		if (n >= 256 && vm.Pitch == 8) || (n >= 1024 && vm.Pitch == 16) {
 			continue
 		}
 
@@ -897,7 +868,7 @@ func (vm *CHIP_8) draw(a, x, y uint, n byte) byte {
 		c |= b1 & ^vm.Video[n+1]
 
 		// next scan line
-		y += uint(p)
+		y += vm.Pitch
 	}
 
 	// non-zero if there was a collision
@@ -924,7 +895,7 @@ func (vm *CHIP_8) drawSpriteEx(x, y uint) {
 	for i := uint(0);i < 16;i++ {
 		c |= vm.draw(a+(i<<1), uint(vm.V[x]), uint(vm.V[y])+i, 1)
 
-		if vm.HighRes {
+		if vm.Pitch == 16 {
 			c |= vm.draw(a+(i<<1)+1, uint(vm.V[x])+8, uint(vm.V[y])+i, 1)
 		}
 	}
