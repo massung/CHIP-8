@@ -70,7 +70,8 @@ type CHIP_8 struct {
 	Cycles int64
 
 	/// Speed is how many cycles (instructions) should execute per second.
-	/// By default this is 600.
+	/// By default this is 1000. The RCA CDP1802 ran at 3.2 MHz, with each
+	/// instruction taking 16-24 clock cycles.
 	///
 	Speed int64
 
@@ -83,7 +84,7 @@ type CHIP_8 struct {
 	///
 	Keys [16]bool
 
-	/// Number of bytes per scan line.
+	/// Number of bytes per scan line. This is 8 in low mode and 16 when high.
 	///
 	Pitch uint
 
@@ -105,7 +106,7 @@ func (b Breakpoint) Error() string {
 	return fmt.Sprintf("hit breakpoint @ %04X: %s", b.address, b.reason)
 }
 
-/// SysCall is an implemention of error.
+/// SysCall is an implementation of error.
 ///
 type SysCall struct {
 	address uint
@@ -187,7 +188,7 @@ func (vm *CHIP_8) Reset() {
 	// reset the clock and cycles executed
 	vm.Clock = time.Now().UnixNano()
 	vm.Cycles = 0
-	vm.Speed = 600
+	vm.Speed = 1000
 
 	// not waiting for a key
 	vm.W = nil
@@ -211,8 +212,8 @@ func (vm *CHIP_8) Restore(file string) {
 /// IncSpeed increases CHIP-8 virtual machine performance.
 ///
 func (vm *CHIP_8) IncSpeed() {
-	if vm.Speed < 1000 {
-		vm.Speed += 100
+	if vm.Speed < 2000 {
+		vm.Speed += 200
 
 		// reset the clock
 		vm.Clock = time.Now().UnixNano()
@@ -223,8 +224,8 @@ func (vm *CHIP_8) IncSpeed() {
 /// DecSpeed lowers CHIP-8 virtual machine performance.
 ///
 func (vm *CHIP_8) DecSpeed() {
-	if vm.Speed > 100 {
-		vm.Speed -= 100
+	if vm.Speed > 200 {
+		vm.Speed -= 200
 
 		// reset the clock
 		vm.Clock = time.Now().UnixNano()
@@ -735,7 +736,7 @@ func (vm *CHIP_8) loadF(x uint) {
 /// Load high font sprite for vx into I.
 ///
 func (vm *CHIP_8) loadHF(x uint) {
-	// TODO:
+	vm.I = 16*5 + uint(vm.V[x])*20
 }
 
 /// Bitwise or vx with vy into vx.
@@ -912,12 +913,18 @@ func (vm *CHIP_8) drawSpriteEx(x, y uint) {
 ///
 func (vm *CHIP_8) saveRegs(x uint) {
 	copy(vm.Memory[vm.I:], vm.V[:x+1])
+
+	// post-increment I
+	vm.I += x+1
 }
 
 /// Load registers v0..vx from I.
 ///
 func (vm *CHIP_8) loadRegs(x uint) {
 	copy(vm.V[:], vm.Memory[vm.I:vm.I+x+1])
+
+	// post-increment I
+	vm.I += x+1
 }
 
 /// Store v0..v7 in the HP-RPL user flags.
