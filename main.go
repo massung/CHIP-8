@@ -123,44 +123,35 @@ func main() {
 }
 
 func Load() {
-	var size int
-
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println(r)
-
-			// load the empty, dummy rom
-			VM, _ = chip8.LoadROM(chip8.Dummy)
-		}
-	}()
-
 	if File == "" {
 		fmt.Print("Loading PONG... ")
-		VM, size = chip8.LoadROM(chip8.Pong)
+		VM, _ = chip8.LoadROM(chip8.Pong)
 	} else {
 		if Assemble {
-			fmt.Print("Assembling ", filepath.Base(File), "... ")
+			fmt.Println("Assembling", filepath.Base(File))
 
 			// assemble the source file
-			asm := chip8.Assemble(File)
+			asm, err := chip8.Assemble(File)
+
+			// report any error
+			if err != nil {
+				fmt.Println(err)
+			}
 
 			// load the assembled program
-			VM, size = chip8.LoadROM(asm.ROM)
+			VM, _ = chip8.LoadROM(asm.ROM)
 
 			// add all the breakpoints from the assembly
 			for _, b := range asm.Breakpoints {
 				VM.AddBreakpoint(b)
 			}
 		} else {
-			fmt.Print("Loading ", filepath.Base(File), "... ")
+			fmt.Println("Loading ", filepath.Base(File))
 
 			// read the ROM file off disk
-			VM, size = chip8.LoadFile(File)
+			VM, _ = chip8.LoadFile(File)
 		}
 	}
-
-	// show how many bytes were loaded
-	fmt.Println(size, "bytes")
 }
 
 func Refresh() {

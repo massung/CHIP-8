@@ -45,7 +45,7 @@
     ; show the initial score
     call        draw_score
 
-loop:
+.loop
     call        user_input
     call        move
     call        check_bounds
@@ -55,7 +55,7 @@ loop:
 
     jp          loop
 
-user_input:
+.user_input
     ld          v0, 5 ; up
     sknp        v0
     ld          v7, 0
@@ -70,7 +70,7 @@ user_input:
     ld          v7, 1
     ret
 
-move:
+.move
     ld          v0, 1
 
     ; test against direction
@@ -86,20 +86,20 @@ move:
     ; invalid movement direction
     ret
 
-move_up:
+.move_up
     sub         v5, v0
     ret
-move_right:
+.move_right
     add         v4, v0
     ret
-move_down:
+.move_down
     add         v5, v0
     ret
-move_left:
+.move_left
     sub         v4, v0
     ret
 
-write_head:
+.write_head
     ld          i, snake_tail
     add         va, 2
     add         i, va
@@ -108,7 +108,7 @@ write_head:
     ld          [i], v1
     ret
 
-draw_head:
+.draw_head
     ld          i, dot
     drw         v4, v5, 1
     se          vf, 1
@@ -147,7 +147,7 @@ draw_head:
     ; and spawn more food
     jp          spawn_food
 
-erase_tail:
+.erase_tail
     ld          i, snake_tail
     add         i, vb
     ld          v1, [i]
@@ -156,7 +156,7 @@ erase_tail:
     add         vb, 2
     ret
 
-check_bounds:
+.check_bounds
     sne         v4, #ff
     jp          game_over
     sne         v4, 64
@@ -167,7 +167,7 @@ check_bounds:
     jp          game_over
     ret
 
-spawn_food:
+.spawn_food
     rnd         v8, #3f
     rnd         v9, #1f
 
@@ -183,7 +183,7 @@ spawn_food:
     drw         v8, v9, 1
     jp          spawn_food
 
-draw_score:
+.draw_score
     ld          i, score
     ld          b, v6
     ld          v2, [i]
@@ -203,35 +203,40 @@ draw_score:
 
     ret
 
-fill_life:
+.fill_life
     ld          vc, #1f
 
     ; draw the life bar to full at top
     ld          i, life_bar
     ld          v0, 0
     ld          v1, 0
-rep:
+.rep
     drw         v0, v1, 1
     add         v0, 8
     se          v0, #40
     jp          rep
     ret
 
-game_over:
+.game_over
     ld          v0, 15
     ld          st, v0
     exit
 
 
-life_bar:
-    db          $11111111
-start:
-    db          $111.....
-dot:
-    db          $1.......
 
-score:
-    db          0, 0, 0
+    byte        1, 2, 3, 4
+.life_bar
+    byte        $11111111
+.start
+    byte        $111.....
+.dot
+    byte        $1.......
 
-snake_tail:
-    db          10, 10, 11, 10, 12, 10
+    align       32
+.score
+    reserve     3
+
+.snake_tail
+    byte        10, 10, 11, 10, 12, 10
+
+    byte        1, 2, 3, 4

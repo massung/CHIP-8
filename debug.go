@@ -59,10 +59,10 @@ func InitDebug() {
 func DebugHelp() {
 	fmt.Println()
 	fmt.Println("Virtual keys:")
-	fmt.Println(" 1-2-3-4 - 1-2-3-C")
-	fmt.Println(" Q-W-E-R - 4-5-6-D")
-	fmt.Println(" A-S-D-F - 7-8-9-E")
-	fmt.Println(" Z-X-C-V - A-0-B-F")
+	fmt.Println(" 1-2-3-4 >> 1-2-3-C")
+	fmt.Println(" Q-W-E-R >> 4-5-6-D")
+	fmt.Println(" A-S-D-F >> 7-8-9-E")
+	fmt.Println(" Z-X-C-V >> A-0-B-F")
 	fmt.Println()
 	fmt.Println("Emulation keys:")
 	fmt.Println(" [ / ]   - Adjust speed")
@@ -70,7 +70,7 @@ func DebugHelp() {
 	fmt.Println(" BACK    - Reboot")
 	fmt.Println(" SPACE   - Pause/break")
 	fmt.Println(" F10     - Step")
-	fmt.Println(" F11     - Memory")
+	fmt.Println(" F11     - View Memory")
 	fmt.Println(" F12     - Screenshot")
 }
 
@@ -108,7 +108,7 @@ func DebugAssembly(x, y int) {
 ///
 func DebugRegisters(x, y int) {
 	for i := 0;i < 16;i++ {
-		DrawText(fmt.Sprintf("  V%X - #%02X", i, VM.V[i]), x, y + i * 10)
+		DrawText(fmt.Sprintf("V%X - #%02X", i, VM.V[i]), x, y + i * 10)
 	}
 
 	// shift over to next column
