@@ -59,19 +59,21 @@ func InitDebug() {
 func DebugHelp() {
 	fmt.Println()
 	fmt.Println("Virtual keys:")
-	fmt.Println(" 1-2-3-4 >> 1-2-3-C")
-	fmt.Println(" Q-W-E-R >> 4-5-6-D")
-	fmt.Println(" A-S-D-F >> 7-8-9-E")
-	fmt.Println(" Z-X-C-V >> A-0-B-F")
+	fmt.Println(" 1-2-3-4 : 1-2-3-C")
+	fmt.Println(" Q-W-E-R : 4-5-6-D")
+	fmt.Println(" A-S-D-F : 7-8-9-E")
+	fmt.Println(" Z-X-C-V : A-0-B-F")
 	fmt.Println()
 	fmt.Println("Emulation keys:")
 	fmt.Println(" [ / ]   - Adjust speed")
 	fmt.Println(" PG U/D  - Scroll log")
 	fmt.Println(" BACK    - Reboot")
 	fmt.Println(" SPACE   - Pause/break")
+	fmt.Println(" F3      - Save VM")
+	fmt.Println(" F4      - Load VM")
 	fmt.Println(" F10     - Step")
-	fmt.Println(" F11     - View Memory")
-	fmt.Println(" F12     - Screenshot")
+	fmt.Println(" F11     - View memory")
+	fmt.Println(" F12     - Save screenshot")
 }
 
 /// DebugAssembly renders the disassembled instructions around

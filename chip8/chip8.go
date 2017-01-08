@@ -209,6 +209,12 @@ func (vm *CHIP_8) Restore(file string) {
 	// TODO:
 }
 
+/// HighRes returns true if the CHIP-8 is in high resolution mode.
+///
+func (vm *CHIP_8) HighRes() bool {
+	return vm.Pitch > 8
+}
+
 /// IncSpeed increases CHIP-8 virtual machine performance.
 ///
 func (vm *CHIP_8) IncSpeed() {
@@ -496,8 +502,8 @@ func (vm *CHIP_8) call(address uint) {
 	vm.SP -= 2
 
 	// push program counter onto stack
-	vm.Memory[vm.SP] = byte(vm.PC >> 8 & 0xFF)
-	vm.Memory[vm.SP + 1] = byte(vm.PC & 0xFF)
+	vm.Memory[vm.SP] = byte(vm.PC>>8 & 0xFF)
+	vm.Memory[vm.SP+1] = byte(vm.PC & 0xFF)
 
 	// jump to address
 	vm.PC = address
@@ -511,7 +517,7 @@ func (vm *CHIP_8) ret() {
 	}
 
 	// restore program counter
-	vm.PC = uint(vm.Memory[vm.SP]) << 8 | uint(vm.Memory[vm.SP + 1])
+	vm.PC = uint(vm.Memory[vm.SP]) << 8 | uint(vm.Memory[vm.SP+1])
 
 	// post-increment program counter
 	vm.SP += 2
@@ -913,18 +919,12 @@ func (vm *CHIP_8) drawSpriteEx(x, y uint) {
 ///
 func (vm *CHIP_8) saveRegs(x uint) {
 	copy(vm.Memory[vm.I:], vm.V[:x+1])
-
-	// post-increment I
-	vm.I += x+1
 }
 
 /// Load registers v0..vx from I.
 ///
 func (vm *CHIP_8) loadRegs(x uint) {
 	copy(vm.V[:], vm.Memory[vm.I:vm.I+x+1])
-
-	// post-increment I
-	vm.I += x+1
 }
 
 /// Store v0..v7 in the HP-RPL user flags.

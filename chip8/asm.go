@@ -538,7 +538,7 @@ func (a *Assembly) assembleSHR(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_V); ok {
 		x := ops[0].val.(int)
 
-		return []byte{0x80|byte(x), 0x06}
+		return []byte{0x80|byte(x), byte(x << 4) | 0x06}
 	}
 
 	panic("illegal instruction")
@@ -550,7 +550,7 @@ func (a *Assembly) assembleSHL(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_V); ok {
 		x := ops[0].val.(int)
 
-		return []byte{0x80|byte(x), 0x0E}
+		return []byte{0x80|byte(x), byte(x << 4) | 0x0E}
 	}
 
 	panic("illegal instruction")
