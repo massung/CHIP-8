@@ -10,16 +10,13 @@ import (
 
 	"github.com/massung/chip-8/chip8"
 	"github.com/veandco/go-sdl2/sdl"
+	"strings"
 )
 
 var (
 	/// The file to load as a ROM or assemble.
 	///
 	File string
-
-	/// True if the File is assembly code.
-	///
-	Assemble bool
 
 	/// True if the ROM should load paused.
 	///
@@ -46,7 +43,6 @@ func main() {
 	rand.Seed(time.Now().UTC().UnixNano())
 
 	// parse the command line
-	flag.BoolVar(&Assemble, "a", false, "Assemble file before loading.")
 	flag.BoolVar(&Break, "b", false, "Start ROM paused.")
 	flag.Parse()
 
@@ -127,28 +123,19 @@ func Load() {
 		fmt.Print("Loading PONG... ")
 		VM, _ = chip8.LoadROM(chip8.Pong)
 	} else {
-		if Assemble {
-			fmt.Println("Assembling", filepath.Base(File))
+		base := filepath.Base(File)
 
-			// assemble the source file
-			asm, err := chip8.Assemble(File)
+		// show the action being taken
+		fmt.Println("Loading", base)
 
-			// report any error
-			if err != nil {
+		// is this a chip-8 assembly source file?
+		if strings.ToUpper(filepath.Ext(base)) == ".C8" {
+			if asm, err := chip8.Assemble(File); err == nil {
+				VM, _ = chip8.LoadAssembly(asm)
+			} else {
 				fmt.Println(err)
 			}
-
-			// load the assembled program
-			VM, _ = chip8.LoadROM(asm.ROM)
-
-			// add all the breakpoints from the assembly
-			for _, b := range asm.Breakpoints {
-				VM.SetBreakpoint(b.Address, b.Reason)
-			}
 		} else {
-			fmt.Println("Loading ", filepath.Base(File))
-
-			// read the ROM file off disk
 			VM, _ = chip8.LoadFile(File)
 		}
 	}

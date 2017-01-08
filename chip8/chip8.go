@@ -29,12 +29,17 @@ type CHIP_8 struct {
 	///
 	Video [0x401]byte
 
+	/// The stack was in a reserved section of memory on the 1802.
+	/// Originally it was only 12-cells deep, but later implementations
+	/// went as high as 16-cells.
+	///
+	Stack [16]uint
+
 	/// PC is the program counter. All programs begin at 0x200.
 	///
 	PC uint
 
-	/// SP is the stack pointer. The stack is stored at 0x200 and grows
-	/// down. It isn't allowed to be more than 16 cells deep.
+	/// SP is the stack pointer.
 	///
 	SP uint
 
@@ -128,6 +133,7 @@ func LoadROM(program []byte) (*CHIP_8, int) {
 	// initialize any data that doesn't Reset()
 	vm := &CHIP_8{
 		Breakpoints: make(map[int]string),
+		Speed: 1000,
 	}
 
 	// copy the RCA 1802 512 byte ROM into the CHIP-8
@@ -157,6 +163,19 @@ func LoadFile(file string) (*CHIP_8, int) {
 	return LoadROM(program)
 }
 
+/// Load a compiled assembly and return a new CHIP-8 virtual machine.
+///
+func LoadAssembly(asm *Assembly) (*CHIP_8, int) {
+	vm, size := LoadROM(asm.ROM)
+
+	// set all the breakpoints from the assembly
+	for _, b := range asm.Breakpoints {
+		vm.SetBreakpoint(b.Address, b.Reason)
+	}
+
+	return vm, size
+}
+
 /// Reset the CHIP-8 virtual machine memory.
 ///
 func (vm *CHIP_8) Reset() {
@@ -172,7 +191,7 @@ func (vm *CHIP_8) Reset() {
 
 	// reset program counter and stack pointer
 	vm.PC = 0x200
-	vm.SP = 0x200
+	vm.SP = 0
 
 	// reset Address register
 	vm.I = 0
@@ -190,7 +209,6 @@ func (vm *CHIP_8) Reset() {
 	// reset the clock and cycles executed
 	vm.Clock = time.Now().UnixNano()
 	vm.Cycles = 0
-	vm.Speed = 1000
 
 	// not waiting for a key
 	vm.W = nil
@@ -512,16 +530,13 @@ func (vm *CHIP_8) sys(address uint) {
 /// Call a subroutine at Address.
 ///
 func (vm *CHIP_8) call(address uint) {
-	if vm.SP < 0x1E0 {
+	if int(vm.SP) >= len(vm.Stack) {
 		panic("Stack overflow!")
 	}
 
-	// pre-decrement
-	vm.SP -= 2
-
-	// push program counter onto stack
-	vm.Memory[vm.SP] = byte(vm.PC>>8 & 0xFF)
-	vm.Memory[vm.SP+1] = byte(vm.PC & 0xFF)
+	// post increment
+	vm.Stack[vm.SP] = vm.PC
+	vm.SP += 1
 
 	// jump to Address
 	vm.PC = address
@@ -530,15 +545,13 @@ func (vm *CHIP_8) call(address uint) {
 /// Return from subroutine.
 ///
 func (vm *CHIP_8) ret() {
-	if vm.SP == 0x200 {
+	if vm.SP == 0 {
 		panic("Stack underflow!")
 	}
 
-	// restore program counter
-	vm.PC = uint(vm.Memory[vm.SP]) << 8 | uint(vm.Memory[vm.SP+1])
-
-	// post-increment program counter
-	vm.SP += 2
+	// pre-decrement
+	vm.SP -= 1
+	vm.PC = vm.Stack[vm.SP]
 }
 
 /// Exit the interpreter.
