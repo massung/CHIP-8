@@ -57,6 +57,10 @@ func ProcessEvents() bool {
 					VM.DecSpeed()
 				case sdl.SCANCODE_RIGHTBRACKET:
 					VM.IncSpeed()
+				case sdl.SCANCODE_F9:
+					if Paused {
+						VM.ToggleBreakpoint()
+					}
 				case sdl.SCANCODE_F10:
 					if Paused {
 						VM.Step()

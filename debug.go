@@ -57,20 +57,14 @@ func InitDebug() {
 /// Show the HELP text in the log.
 ///
 func DebugHelp() {
-	fmt.Println()
-	fmt.Println("Virtual keys:")
-	fmt.Println(" 1-2-3-4 : 1-2-3-C")
-	fmt.Println(" Q-W-E-R : 4-5-6-D")
-	fmt.Println(" A-S-D-F : 7-8-9-E")
-	fmt.Println(" Z-X-C-V : A-0-B-F")
-	fmt.Println()
-	fmt.Println("Emulation keys:")
+	fmt.Println("\nEmulation keys:")
 	fmt.Println(" [ / ]   - Adjust speed")
 	fmt.Println(" PG U/D  - Scroll log")
 	fmt.Println(" BACK    - Reboot")
 	fmt.Println(" SPACE   - Pause/break")
 	fmt.Println(" F3      - Save VM")
 	fmt.Println(" F4      - Load VM")
+	fmt.Println(" F9      - Set breakpoint")
 	fmt.Println(" F10     - Step")
 	fmt.Println(" F11     - View memory")
 	fmt.Println(" F12     - Save screenshot")
@@ -103,6 +97,17 @@ func DebugAssembly(x, y int) {
 		}
 
 		DrawText(VM.Disassemble(Address + uint(i)), x, y + i * 5)
+
+		// is there a breakpoint on this instruction?
+		if _, exists := VM.Breakpoints[int(Address) + i]; exists {
+			Renderer.SetDrawColor(255, 0, 0, 255)
+			Renderer.DrawRect(&sdl.Rect{
+				X: int32(x - 2),
+				Y: int32(y + i * 5) - 1,
+				W: 202,
+				H: 10,
+			})
+		}
 	}
 }
 

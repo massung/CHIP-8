@@ -38,7 +38,7 @@ type CHIP_8 struct {
 	///
 	SP uint
 
-	/// I is the address register.
+	/// I is the Address register.
 	///
 	I uint
 
@@ -88,22 +88,22 @@ type CHIP_8 struct {
 	///
 	Pitch uint
 
-	/// A list of instruction address breakpoints.
+	/// A mapping of instruction Address breakpoints.
 	///
-	Breakpoints []Breakpoint
+	Breakpoints map[int]string
 }
 
 /// Breakpoint is an implementation of error.
 ///
 type Breakpoint struct {
-	address int
-	reason  string
+	Address int
+	Reason  string
 }
 
 /// Error implements the error interface for a Breakpoint.
 ///
 func (b Breakpoint) Error() string {
-	return fmt.Sprintf("hit breakpoint @ %04X: %s", b.address, b.reason)
+	return fmt.Sprintf("hit breakpoint @ %04X: %s", b.Address, b.Reason)
 }
 
 /// SysCall is an implementation of error.
@@ -125,8 +125,10 @@ func LoadROM(program []byte) (*CHIP_8, int) {
 		panic("Program too large to fit in memory!")
 	}
 
-	// create the new CHIP-8 virtual machine
-	vm := &CHIP_8{}
+	// initialize any data that doesn't Reset()
+	vm := &CHIP_8{
+		Breakpoints: make(map[int]string),
+	}
 
 	// copy the RCA 1802 512 byte ROM into the CHIP-8
 	for i, b := range rca_1802 {
@@ -172,7 +174,7 @@ func (vm *CHIP_8) Reset() {
 	vm.PC = 0x200
 	vm.SP = 0x200
 
-	// reset address register
+	// reset Address register
 	vm.I = 0
 
 	// reset virtual registers
@@ -239,18 +241,36 @@ func (vm *CHIP_8) DecSpeed() {
 	}
 }
 
-/// AddBreakpoint at a ROM address to the CHIP-8 virtual machine.
+/// SetBreakpoint at a ROM Address to the CHIP-8 virtual machine.
 ///
-func (vm *CHIP_8) AddBreakpoint(b Breakpoint) {
-	if b.address >= 0x200 && b.address < len(vm.ROM) {
-		vm.Breakpoints = append(vm.Breakpoints, b)
+func (vm *CHIP_8) SetBreakpoint(address int, reason string) {
+	if address >= 0x200 && address < len(vm.ROM) {
+		vm.Breakpoints[address] = reason
+	}
+}
+
+/// RemoveBreakpoint clears a breakpoint at a given ROM Address.
+///
+func (vm *CHIP_8) RemoveBreakpoint(address int) {
+	delete(vm.Breakpoints, address)
+}
+
+/// ToggleBreakpoint at the current PC. Any reason is lost.
+///
+func (vm *CHIP_8) ToggleBreakpoint() {
+	a := int(vm.PC)
+
+	if _, ok := vm.Breakpoints[a]; !ok {
+		vm.SetBreakpoint(a, "User break")
+	} else {
+		vm.RemoveBreakpoint(a)
 	}
 }
 
 /// ClearBreakpoints removes all breakpoints.
 ///
 func (vm *CHIP_8) ClearBreakpoints() {
-	vm.Breakpoints = make([]Breakpoint, 0)
+	vm.Breakpoints = make(map[int]string)
 }
 
 /// PressKey emulates a CHIP-8 key being pressed.
@@ -344,7 +364,7 @@ func (vm *CHIP_8) Step() error {
 	// fetch the next instruction
 	inst := vm.fetch()
 
-	// 12-bit address operand
+	// 12-bit Address operand
 	a := inst & 0xFFF
 
 	// byte and nibble operands
@@ -456,10 +476,8 @@ func (vm *CHIP_8) Step() error {
 	vm.Cycles += 1
 
 	// if at a breakpoint, return it
-	for _, b := range vm.Breakpoints {
-		if b.address == int(vm.PC) {
-			return b
-		}
+	if s, ok := vm.Breakpoints[int(vm.PC)]; ok {
+		return Breakpoint{Address: int(vm.PC), Reason: s}
 	}
 
 	return nil
@@ -485,13 +503,13 @@ func (vm *CHIP_8) cls() {
 	}
 }
 
-/// System call an RCA 1802 program at an address.
+/// System call an RCA 1802 program at an Address.
 ///
 func (vm *CHIP_8) sys(address uint) {
 	// unimplemented
 }
 
-/// Call a subroutine at address.
+/// Call a subroutine at Address.
 ///
 func (vm *CHIP_8) call(address uint) {
 	if vm.SP < 0x1E0 {
@@ -505,7 +523,7 @@ func (vm *CHIP_8) call(address uint) {
 	vm.Memory[vm.SP] = byte(vm.PC>>8 & 0xFF)
 	vm.Memory[vm.SP+1] = byte(vm.PC & 0xFF)
 
-	// jump to address
+	// jump to Address
 	vm.PC = address
 }
 
@@ -603,13 +621,13 @@ func (vm *CHIP_8) scrollLeft() {
 	}
 }
 
-/// Jump to address.
+/// Jump to Address.
 ///
 func (vm *CHIP_8) jump(address uint) {
 	vm.PC = address
 }
 
-/// Jump to address + v0.
+/// Jump to Address + v0.
 ///
 func (vm *CHIP_8) jumpV0(address uint) {
 	vm.PC = address + uint(vm.V[0])
@@ -699,13 +717,13 @@ func (vm *CHIP_8) loadXK(x uint) {
 	vm.W = &vm.V[x]
 }
 
-/// Load address register.
+/// Load Address register.
 ///
 func (vm *CHIP_8) loadI(address uint) {
 	vm.I = address
 }
 
-/// Load address with BCD of vx.
+/// Load Address with BCD of vx.
 ///
 func (vm *CHIP_8) loadB(x uint) {
 	n := uint16(vm.V[x])
@@ -742,7 +760,7 @@ func (vm *CHIP_8) loadF(x uint) {
 /// Load high font sprite for vx into I.
 ///
 func (vm *CHIP_8) loadHF(x uint) {
-	vm.I = 16*5 + uint(vm.V[x])*10
+	vm.I = 0x50 + uint(vm.V[x])*10
 }
 
 /// Bitwise or vx with vy into vx.

@@ -85,7 +85,7 @@ func Assemble(file string) (out *Assembly, err error) {
 
 			// note: This "just works" because all labels are guaranteed to be
 			//       addressed within 12-bits. There are only a handful of
-			//       instructions that take an immediate address:
+			//       instructions that take an immediate Address:
 			//
 			//         SYS    NNN
 			//         CALL   NNN
@@ -100,7 +100,7 @@ func Assemble(file string) (out *Assembly, err error) {
 			out.ROM[address] = msb | (out.ROM[address]&0xF0)
 			out.ROM[address+1] = lsb
 
-			// delete the unresolved address
+			// delete the unresolved Address
 			delete(out.Unresolved, address)
 		}
 	}
@@ -143,12 +143,12 @@ func (a *Assembly) assembleLabel(label string) {
 	a.Labels[label] = len(a.ROM)
 }
 
-/// Create a new breakpoint at the current address.
+/// Create a new breakpoint at the current Address.
 ///
 func (a *Assembly) assembleBreakpoint(s *tokenScanner) {
 	a.Breakpoints = append(a.Breakpoints, Breakpoint{
-		address: len(a.ROM),
-		reason: s.scanToEnd().val.(string),
+		Address: len(a.ROM),
+		Reason: s.scanToEnd().val.(string),
 	})
 }
 
@@ -234,16 +234,16 @@ func (a *Assembly) assembleOperand(t token) token {
 		}
 	}
 
-	// address labels
+	// Address labels
 	if t.typ == TOKEN_REF {
 		if address, ok := a.Labels[t.val.(string)]; ok {
 			return token{typ: TOKEN_LIT, val: address}
 		}
 
-		// add an unresolved label at this address
+		// add an unresolved label at this Address
 		a.Unresolved[len(a.ROM)] = t.val.(string)
 
-		// use a null label address that's larger than a byte
+		// use a null label Address that's larger than a byte
 		return token{typ: TOKEN_LIT, val: 0x200}
 	}
 

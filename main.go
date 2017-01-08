@@ -143,7 +143,7 @@ func Load() {
 
 			// add all the breakpoints from the assembly
 			for _, b := range asm.Breakpoints {
-				VM.AddBreakpoint(b)
+				VM.SetBreakpoint(b.Address, b.Reason)
 			}
 		} else {
 			fmt.Println("Loading ", filepath.Base(File))

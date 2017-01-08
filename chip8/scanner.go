@@ -260,12 +260,12 @@ func (s *tokenScanner) scanIdentifier() token {
 	return token{typ: TOKEN_REF, val: id}
 }
 
-/// Scan an indirect address of.
+/// Scan an indirect Address of.
 ///
 func (s *tokenScanner) scanIndirection() token {
 	s.pos += 1
 
-	// scan the next token to take the indirect address of
+	// scan the next token to take the indirect Address of
 	t := s.scanToken()
 
 	// the next token should close the indirection

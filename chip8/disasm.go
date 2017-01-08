@@ -17,7 +17,7 @@ func (vm *CHIP_8) Disassemble(i uint) string {
 		return fmt.Sprintf("%04X -", i)
 	}
 
-	// 12-bit literal address
+	// 12-bit literal Address
 	a := inst & 0xFFF
 
 	// byte and nibble literals
