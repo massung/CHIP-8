@@ -70,12 +70,12 @@ type CHIP_8 struct {
 	Clock int64
 
 	/// Cycles is how many clock cycles have been processed. It is assumed
-	/// once clock cycle per instruction.
+	/// one clock cycle per instruction.
 	///
 	Cycles int64
 
 	/// Speed is how many cycles (instructions) should execute per second.
-	/// By default this is 1000. The RCA CDP1802 ran at 3.2 MHz, with each
+	/// By default this is 1000. The RCA CDP1802 ran at 1.76 MHz, with each
 	/// instruction taking 16-24 clock cycles.
 	///
 	Speed int64
@@ -93,7 +93,7 @@ type CHIP_8 struct {
 	///
 	Pitch uint
 
-	/// A mapping of instruction Address breakpoints.
+	/// A mapping of address breakpoints.
 	///
 	Breakpoints map[int]string
 }
@@ -101,7 +101,12 @@ type CHIP_8 struct {
 /// Breakpoint is an implementation of error.
 ///
 type Breakpoint struct {
+	/// Address is the memory address where the PC should break.
+	///
 	Address int
+
+	/// Reason is used to identify what id happening in code.
+	///
 	Reason  string
 }
 
@@ -114,13 +119,16 @@ func (b Breakpoint) Error() string {
 /// SysCall is an implementation of error.
 ///
 type SysCall struct {
-	address uint
+	/// Address is the memory location where the CDP1802 instructions
+	/// are located.
+	///
+	Address uint
 }
 
 /// Error implements the error interface for a SysCall.
 ///
 func (call SysCall) Error() string {
-	return fmt.Sprintf("unimplmented syscall to #%04X", call.address)
+	return fmt.Sprintf("unimplmented syscall to #%04X", call.Address)
 }
 
 /// Load a ROM from a byte array and return a new CHIP-8 virtual machine.
