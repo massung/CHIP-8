@@ -107,6 +107,8 @@ func (vm *CHIP_8) Disassemble(i uint) string {
 		return fmt.Sprintf("%04X - ADD    I, V%X", i, x)
 	} else if inst&0xF0FF == 0xF029 {
 		return fmt.Sprintf("%04X - LD     F, V%X", i, x)
+	} else if inst&0xF0FF == 0xF030 {
+		return fmt.Sprintf("%04X - LD     HF, V%X", i, x)
 	} else if inst&0xF0FF == 0xF033 {
 		return fmt.Sprintf("%04X - LD     B, V%X", i, x)
 	} else if inst&0xF0FF == 0xF055 {

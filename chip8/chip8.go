@@ -742,7 +742,7 @@ func (vm *CHIP_8) loadF(x uint) {
 /// Load high font sprite for vx into I.
 ///
 func (vm *CHIP_8) loadHF(x uint) {
-	vm.I = 16*5 + uint(vm.V[x])*20
+	vm.I = 16*5 + uint(vm.V[x])*10
 }
 
 /// Bitwise or vx with vy into vx.
