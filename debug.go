@@ -143,14 +143,20 @@ func DebugMemory() {
 
 	// show 8 lines of 12 bytes each
 	for line := 0; line < 8; line++ {
-		if n := a+line*12; n < 0x1000 {
-			line := fmt.Sprintf(" %04X - %02X %02X %02X %02X %02X %02X %02X %02X", n,
-				VM.Memory[n + 0], VM.Memory[n + 1], VM.Memory[n + 2], VM.Memory[n + 3],
-				VM.Memory[n + 4], VM.Memory[n + 5], VM.Memory[n + 6], VM.Memory[n + 7])
+		n := a+line*12
 
-			// show the line and flush
-			fmt.Println(line)
+		// memory address
+		fmt.Printf(" %04X -", n)
+
+		// 12-byte row
+		for i := 0;i < 12;i++ {
+			if n+i < 0x10000 {
+				fmt.Printf(" %02X", VM.Memory[n + i])
+			}
 		}
+
+		// end of line
+		fmt.Println()
 	}
 }
 
