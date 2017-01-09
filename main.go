@@ -159,7 +159,7 @@ func Refresh() {
 
 	// debug assembly and virtual registers
 	DebugLog(12, 212)
-	DebugAssembly(406, 11)
+	DebugAssembly(406, 12)
 	DebugRegisters(406, 212)
 
 	// show the new frame
