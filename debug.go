@@ -57,17 +57,19 @@ func InitDebug() {
 /// Show the HELP text in the log.
 ///
 func DebugHelp() {
-	fmt.Println("\nEmulation keys:")
-	fmt.Println(" [ / ]   - Adjust speed")
-	fmt.Println(" PG U/D  - Scroll log")
-	fmt.Println(" BACK    - Reboot")
-	fmt.Println(" SPACE   - Pause/break")
-	fmt.Println(" F3      - Save VM")
-	fmt.Println(" F4      - Load VM")
-	fmt.Println(" F9      - Set breakpoint")
-	fmt.Println(" F10     - Step")
-	fmt.Println(" F11     - View memory")
-	fmt.Println(" F12     - Save screenshot")
+	fmt.Println()
+	fmt.Println("Keys        | Description")
+	fmt.Println("------------+-------------------------------------")
+	fmt.Println("BACK        | Reboot (+CTRL to break on reset)")
+	fmt.Println("[ / ]       | Deacrease/increase speed")
+	fmt.Println("HOME / END  | Scroll log")
+	fmt.Println("PGUP / PGDN | Scroll log")
+	fmt.Println("F3          | Load ROM / C8 assembler")
+	fmt.Println("F5          | Pause/break")
+	fmt.Println("F6          | Step")
+	fmt.Println("F7          | Step over")
+	fmt.Println("F8          | Debug memory")
+	fmt.Println("F9          | Set breakpoint")
 }
 
 /// DebugAssembly renders the disassembled instructions around

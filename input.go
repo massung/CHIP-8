@@ -41,6 +41,15 @@ func ProcessEvents() bool {
 				switch ev.Keysym.Scancode {
 				case sdl.SCANCODE_ESCAPE:
 					return false
+				case sdl.SCANCODE_BACKSPACE:
+					VM.Reset()
+
+					// holding control during reset will reboot paused
+					if ev.Keysym.Mod & sdl.KMOD_CTRL != 0 {
+						Paused = true
+					}
+				case sdl.SCANCODE_F3:
+					LoadDialog()
 				case sdl.SCANCODE_UP, sdl.SCANCODE_PAGEUP:
 					DebugLogScroll(-1)
 				case sdl.SCANCODE_DOWN, sdl.SCANCODE_PAGEDOWN:
@@ -49,28 +58,31 @@ func ProcessEvents() bool {
 					DebugLogHome()
 				case sdl.SCANCODE_END:
 					DebugLogEnd()
-				case sdl.SCANCODE_F1:
+				case sdl.SCANCODE_H:
 					DebugHelp()
-				case sdl.SCANCODE_SPACE:
-					Paused = !Paused
 				case sdl.SCANCODE_LEFTBRACKET:
 					VM.DecSpeed()
 				case sdl.SCANCODE_RIGHTBRACKET:
 					VM.IncSpeed()
+				case sdl.SCANCODE_F5, sdl.SCANCODE_SPACE:
+					Paused = !Paused
+				case sdl.SCANCODE_F6:
+					if Paused {
+						VM.Step()
+					}
+				case sdl.SCANCODE_F7:
+					if Paused {
+						VM.SetOverBreakpoint()
+						Paused = false
+					}
+				case sdl.SCANCODE_F8:
+					if Paused {
+						DebugMemory()
+					}
 				case sdl.SCANCODE_F9:
 					if Paused {
 						VM.ToggleBreakpoint()
 					}
-				case sdl.SCANCODE_F10:
-					if Paused {
-						VM.Step()
-					}
-				case sdl.SCANCODE_F11:
-					DebugMemory()
-				case sdl.SCANCODE_F12:
-					SaveScreen()
-				case sdl.SCANCODE_BACKSPACE:
-					VM.Reset()
 				}
 			}
 		case *sdl.KeyUpEvent:

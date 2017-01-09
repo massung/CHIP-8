@@ -1,6 +1,10 @@
-; Just a simple example using the delay timer.
+; Just a simple stopwatch example using the delay timer.
 ;
-
+; Coded by Jeffrey Massung as an example of the
+; CHIP-8 assembler.
+;
+; Have fun!
+;
 
     ; minute and second
     ld      v4, 0

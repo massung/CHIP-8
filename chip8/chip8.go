@@ -24,10 +24,10 @@ type CHIP_8 struct {
 	/// Video memory for CHIP-8 (64x32 bits). Each bit represents a
 	/// single pixel. It is stored MSB first. For example, pixel <0,0>
 	/// is bit 0x80 of byte 0. 4x the video memory is used for the
-	/// CHIP-48, which is 128x64 resolution. There is an extra byte
-	/// to prevent overflows.
+	/// CHIP-48, which is 128x64 resolution. There are 4 extra lines
+	/// to prevent overflows when scrolling.
 	///
-	Video [0x401]byte
+	Video [0x440]byte
 
 	/// The stack was in a reserved section of memory on the 1802.
 	/// Originally it was only 12-cells deep, but later implementations
@@ -75,8 +75,9 @@ type CHIP_8 struct {
 	Cycles int64
 
 	/// Speed is how many cycles (instructions) should execute per second.
-	/// By default this is 1000. The RCA CDP1802 ran at 1.76 MHz, with each
-	/// instruction taking 16-24 clock cycles.
+	/// By default this is 700. The RCA CDP1802 ran at 1.76 MHz, with each
+	/// instruction taking 16-24 clock cycles, which is a bit over 70,000
+	/// instructions per second.
 	///
 	Speed int64
 
@@ -112,6 +113,10 @@ type Breakpoint struct {
 	/// Conditional is true if the breakpoint only trips when VF != 0.
 	///
 	Conditional bool
+
+	/// Once is true if the breakpoint should be removed once hit.
+	///
+	Once bool
 }
 
 /// Error implements the error interface for a Breakpoint.
@@ -149,7 +154,7 @@ func LoadROM(program []byte) (*CHIP_8, int) {
 	// initialize any data that doesn't Reset()
 	vm := &CHIP_8{
 		Breakpoints: make(map[int]Breakpoint),
-		Speed: 1000,
+		Speed: 700,
 	}
 
 	// copy the RCA 1802 512 byte ROM into the CHIP-8
@@ -200,7 +205,7 @@ func (vm *CHIP_8) Reset() {
 	}
 
 	// reset video memory
-	vm.Video = [0x401]byte{}
+	vm.Video = [0x440]byte{}
 
 	// reset keys
 	vm.Keys = [16]bool{}
@@ -253,26 +258,30 @@ func (vm *CHIP_8) HighRes() bool {
 
 /// IncSpeed increases CHIP-8 virtual machine performance.
 ///
-func (vm *CHIP_8) IncSpeed() {
-	if vm.Speed < 2000 {
+func (vm *CHIP_8) IncSpeed() int {
+	if vm.Speed < 15000 {
 		vm.Speed += 200
 
 		// reset the clock
 		vm.Clock = time.Now().UnixNano()
 		vm.Cycles = 0
 	}
+
+	return int(vm.Speed * 100 / 700)
 }
 
 /// DecSpeed lowers CHIP-8 virtual machine performance.
 ///
-func (vm *CHIP_8) DecSpeed() {
-	if vm.Speed > 200 {
+func (vm *CHIP_8) DecSpeed() int {
+	if vm.Speed > 100 {
 		vm.Speed -= 200
 
 		// reset the clock
 		vm.Clock = time.Now().UnixNano()
 		vm.Cycles = 0
 	}
+
+	return int(vm.Speed * 100 / 700)
 }
 
 /// SetBreakpoint at a ROM Address to the CHIP-8 virtual machine.
@@ -280,6 +289,20 @@ func (vm *CHIP_8) DecSpeed() {
 func (vm *CHIP_8) SetBreakpoint(b Breakpoint) {
 	if b.Address >= 0x200 && b.Address < len(vm.ROM) {
 		vm.Breakpoints[b.Address] = b
+	}
+}
+
+/// SetOverBreakpoint creates a one-time breakpoint on the next instruction.
+///
+func (vm *CHIP_8) SetOverBreakpoint() {
+	a := int(vm.PC) + 2
+
+	if _, ok := vm.Breakpoints[a]; !ok {
+		vm.SetBreakpoint(Breakpoint{
+			Address: a,
+			Reason: "Step",
+			Once: true,
+		})
 	}
 }
 
@@ -295,7 +318,10 @@ func (vm *CHIP_8) ToggleBreakpoint() {
 	a := int(vm.PC)
 
 	if _, ok := vm.Breakpoints[a]; !ok {
-		vm.SetBreakpoint(Breakpoint{Address: a, Reason: "User break"})
+		vm.SetBreakpoint(Breakpoint{
+			Address: a,
+			Reason: "User break",
+		})
 	} else {
 		vm.RemoveBreakpoint(a)
 	}
@@ -512,6 +538,10 @@ func (vm *CHIP_8) Step() error {
 	// if at a breakpoint, return it
 	if b, ok := vm.Breakpoints[int(vm.PC)]; ok {
 		if !b.Conditional || vm.V[0xF] != 0 {
+			if b.Once {
+				delete(vm.Breakpoints, int(vm.PC))
+			}
+
 			return b
 		}
 	}
@@ -627,11 +657,11 @@ func (vm *CHIP_8) scrollDown(n byte) {
 func (vm *CHIP_8) scrollRight() {
 	shift := vm.Pitch>>2
 
-	for i := uint(0x3FF);i >= 0;i-- {
+	for i := 0x3FF;i >= 0;i-- {
 		vm.Video[i] >>= shift
 
 		// get the lower bits from the previous byte
-		if i&(vm.Pitch-1) > 0 {
+		if uint(i)&(vm.Pitch-1) > 0 {
 			vm.Video[i] |= vm.Video[i-1] << (8-shift)
 		}
 	}

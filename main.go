@@ -11,13 +11,10 @@ import (
 
 	"github.com/massung/chip-8/chip8"
 	"github.com/veandco/go-sdl2/sdl"
+	"github.com/sqweek/dialog"
 )
 
 var (
-	/// The file to load as a ROM or assemble.
-	///
-	File string
-
 	/// True if the ROM should load paused.
 	///
 	Break bool
@@ -47,7 +44,7 @@ func main() {
 	flag.Parse()
 
 	// get the file name of the ROM to load
-	File = flag.Arg(0)
+	file := flag.Arg(0)
 
 	// initialize SDL or panic
 	if err = sdl.Init(sdl.INIT_VIDEO | sdl.INIT_AUDIO); err != nil {
@@ -81,7 +78,7 @@ func main() {
 	fmt.Println()
 
 	// create a new CHIP-8 virtual machine
-	Load()
+	Load(file)
 
 	// initialize sub-systems
 	InitScreen()
@@ -96,7 +93,7 @@ func main() {
 	video := time.NewTicker(time.Second / 60)
 
 	// notify that the main loop has started
-	fmt.Println("\nStarting program; press F1 for help")
+	fmt.Println("\nStarting program; press 'H' for help")
 
 	// loop until window closed or user quit
 	for ProcessEvents() {
@@ -118,19 +115,33 @@ func main() {
 	}
 }
 
-func Load() {
-	if File == "" {
+func LoadDialog() {
+	dlg := dialog.File().Title("Load ROM / C8 Assembler")
+
+	// types of files to load
+	dlg.Filter("All Files", "*")
+	dlg.Filter("C8 Assembler Files", "c8", "chip8")
+	dlg.Filter("ROMs", "rom", "")
+
+	// try and load it
+	if file, err := dlg.Load(); err == nil {
+		Load(file)
+	}
+}
+
+func Load(file string) {
+	if file == "" {
 		fmt.Print("Loading PONG... ")
 		VM, _ = chip8.LoadROM(chip8.Pong)
 	} else {
-		base := filepath.Base(File)
+		base := filepath.Base(file)
 
 		// show the action being taken
 		fmt.Println("Loading", base)
 
 		// is this a chip-8 assembly source file?
 		if strings.ToUpper(filepath.Ext(base)) == ".C8" {
-			asm, err := chip8.Assemble(File)
+			asm, err := chip8.Assemble(file)
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -138,7 +149,7 @@ func Load() {
 			// even on error, the assembly is valid
 			VM, _ = chip8.LoadAssembly(asm)
 		} else {
-			VM, _ = chip8.LoadFile(File)
+			VM, _ = chip8.LoadFile(file)
 		}
 	}
 }

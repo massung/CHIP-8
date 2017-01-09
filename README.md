@@ -1,6 +1,6 @@
 # CHIP-8 Emulator
 
-![CHIP-8 Screenshot](data/screenshot.png "The game 'CAR'")
+![CHIP-8 running ANT](data/screenshot.png "The game 'ANT'")
 
 CHIP-8 is an assembler, debugger, and emulator for the [COSMAC ELF][2] [CHIP-8][3] interpreter and its derivative: the Super CHIP-8, which ran on HP-48 calculators. Everything is emulated as well as possible: the video display refreshes at 60 Hz and sound is emulated as well.
 
@@ -16,7 +16,7 @@ CHIP-8 [-b] [ROM|C8]
 
 Simply pass the filename of the ROM or a .C8 assembly source file to the executable and CHIP-8 will load it, assemble if required, and begin running it. If no ROM or C8 file is specified then a default ROM ([Pong](https://en.wikipedia.org/wiki/Pong)) is loaded. 
 
-Once the program is running, press `F1` at any time to see the list of key commands available to you. But here's a quick breakdown:
+Once the program is running, press `H` at any time to see the list of key commands available to you. But here's a quick breakdown:
 
 | Emulation         | Description
 |:------------------|:-----------------
@@ -24,18 +24,15 @@ Once the program is running, press `F1` at any time to see the list of key comma
 | `Ctrl`+`Back`     | Reset and pause
 | `[`               | Decrease emulation speed
 | `]`               | Increase emulation speed
-
-| Images            | Description
-|:------------------|:-----------------
-| `F1`..`F4`        | Save image to slot (1-4)
-| `Ctrl`+`F1`..`F4` | Load image from slot (1-4)
+| `F3`              | Load ROM or C8 assembler file
 
 | Debugging         | Description
 |:------------------|:-----------------
 | `F5`              | Pause/break emulation
+| `F6`              | Single step
+| `F7`              | Step over
+| `F8`              | Dump memory at `I` register
 | `F9`              | Toggle breakpoint
-| `F10`             | Single step
-| `F11`             | Dump memory at `I` register
 
 ### Virtual Key Mapping
 
