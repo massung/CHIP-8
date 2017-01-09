@@ -177,16 +177,16 @@ _NOTE: Nothing special needs to be done to use the Super CHIP-8 instructions. Th
 
 The assembler understands - beyond instructions - the following directives:
 
-| Directive | Usage              | Description
-|:----------|:-------------------|:--------
-| `DECLARE` | `DECLARE ID AS ..` | Declare an identifier that maps to a register, literal, or label. Must be declared before being used.
-| `BREAK`   | `BREAK ..`         | Create a breakpoint. No instruction is written, but the emulator will break before the next instruction is executed.
-| `ASSERT`  | `ASSERT ..`        | Create a conditional breakpoint. The emulator will only break if `VF` is non-zero when the assert is hit. 
-| `KEYMAP`  | `KEYMAP K TO ..`   | Redefine the virtual key `K` to a key on the keyboard.
-| `BYTE`    | `BYTE ..`          | Write bytes to the ROM. This can take bytes literals or text strings.
-| `WORD`    | `WORD ..`          | Write 2-byte words to the ROM in big-endian (MSB first) byte order.
-| `ALIGN`   | `ALIGN BOUNDARY`   | Align the ROM to a power of 2 byte boundary.
-| `RESERVE` | `RESERVE N`        | Write N zero-bytes to the ROM.
+| Directive          | Description
+|:-------------------|:-------------------
+| `DECLARE ID AS ..` | Declare an identifier that maps to a register, literal, or label. Must be declared before being used.
+| `BREAK ..`         | Create a breakpoint. No instruction is written, but the emulator will break before the next instruction is executed.
+| `ASSERT ..`        | Create a conditional breakpoint. The emulator will only break if `VF` is non-zero when the assert is hit. 
+| `KEYMAP K TO ..`   | Redefine the virtual key `K` to a key on the keyboard.
+| `BYTE ..`          | Write bytes to the ROM. This can take bytes literals or text strings.
+| `WORD ..`          | Write 2-byte words to the ROM in big-endian (MSB first) byte order.
+| `ALIGN BOUNDARY`   | Align the ROM to a power of 2 byte boundary.
+| `RESERVE N`        | Write N zero-bytes to the ROM.
 
 ### CHIP-8 Tips & Tricks
 
