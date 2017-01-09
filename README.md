@@ -48,7 +48,7 @@ Just about every assembler for the CHIP-8 is different, and this one is, too. It
 
 A heavily documented, example program for the game [Snake](https://en.wikipedia.org/wiki/Snake_(video_game)) can be found in [games/sources/snake.c8](https://github.com/massung/chip-8/blob/master/games/sources/snake.c8).
 
-#### Syntax
+### Syntax
 
 Each line of assembly uses the following syntax:
 
@@ -56,7 +56,9 @@ Each line of assembly uses the following syntax:
 .label    instruction  arg0, arg1, ...   ; comment
 ```
 
-#### Registers and Literals
+A label **must** appear at the very beginning of the line, and there **must** be at least a single whitespace character before the instruction or directive of a line (i.e. an instruction cannot appear at the beginning of a line).
+
+### Registers and Literals
 
 The CHIP-8 has 16, 8-bit virtual registers: `V0`, `V1`, `V2`, `V3`, `V4`, `V5`, `V6`, `V7`, `V8`, `V9`, `VA`, `VB`, `VC`, `VD`, `VE`, and `VF`. All of these are considered general purpose registers except for `VF` which is used for carry, borrow, shift, overflow, and collision detection.
  
@@ -64,7 +66,7 @@ There is a single, 16-bit address register: `I`, which is used for reading from 
 
 Last, there are two 8-bit timer registers (`DT` for delays and `ST` for sounds) that continuously count down at 60 Hz. The delay timer is good for time limiting your game and as long as the sound timer is non-zero a tone will be emitted.
 
-There are two literal types understood by the assembler: numbers and text strings. The bases for numbers accepted are 10, 16 (`#FF`), and 2 (`$10`). Base (binary) is special in that - since it is often used for creating sprite data - a `.` can be used instead of `0`. For example:
+There are two literal types understood by the assembler: numbers and text strings. The bases for numbers accepted are 10, 16 (`#FF`), and 2 (`$10`). Base 2 (binary) is a little special in that - since it is often used for creating sprite data - a `.` can be used instead of `0`. For example:
   
 ```
     LD   VC, 10   ; VC = 10
@@ -89,7 +91,7 @@ Text literals can be added with single or double quotes, but there is no escape 
     BYTE "A little game made by ME!"
 ```
 
-#### Instruction Set
+### Instruction Set
 
 Here is the CHIP-8 instructions. The Super CHIP-8 instructions follow after the basic instruction set.
 
@@ -149,7 +151,7 @@ And here are the instructions added for the Super CHIP-8 (a.k.a. CHIP-48):
 
 _NOTE: Nothing special needs to be done to use the Super CHIP-8 instructions. They are just noted separately for anyone wishing to hack the code, so they are aware that they are not part of the original CHIP-8 virtual machine._
 
-#### Assembler Directives
+### Directives
 
 The assembler understands - beyond instructions - the following directives:
 
@@ -202,6 +204,89 @@ Use `RESERVE` to simply write N successive zeros to the ROM in order to reserve 
 ```
     reserve 256
 ```
+
+### CHIP-8 Tips & Tricks
+
+Assembly language - if you're not used to it - can be a bit daunting at first. Here's some tips to keep in mind (for CHIP-8 and assembly programming in general) that can help you along the way...
+
+* If you want to subtract a constant value from a register, remember it's easier to just add the [two's complement](https://en.wikipedia.org/wiki/Two%27s_complement) instead.
+ 
+```
+    add         v0, #ff  ; -1
+```
+
+* Want to compare greater than? Use `SUB` and `SUBN`. Remember `VF` is 1 if there is **not** a borrow (read: the result is >= 0). Use `SUBN` when you want to compare, but not store the result in what you're comparing.
+
+```
+    sub         v0, v1
+    se          vf, 1   ; skip if v0 >= v1
+    
+    subn        v1, v0
+    se          vf, 1   ; skip if v0 >= v1
+```
+
+* Need a switch statement? Use `SE` and `SNE` followed by `JP` instructions to what you would do if true.
+
+```
+    se          v0, 0
+    jp          do_this_if_v0_is_0
+    se          v0, 1
+    jp          do_this_if_v0_is_1
+    se          v0, 2
+    jp          do_this_if_v0_is_2
+```
+
+* Or use a jump table based on `V0`. This isn't always possible, but handy when it is.
+
+```
+    ; v0=0, 4, 8, or 12
+    jp          v0, move
+    
+.move
+    add         y, -1   ; up
+    ret
+    add         x, 1    ; right
+    ret
+    add         y, 1    ; down
+    ret
+    add         x, -1   ; left
+    ret
+```
+
+* Have an initial setup for everything? Instead of wasting a bunch of 2-byte instructions initializing them all, put them in memory and use a single load instruction instead.
+
+```
+    ld          i, setup
+    ld          va, [i]
+    
+    ; rest of program here
+    
+.setup
+    byte        0, 1, 2, 3, 4, 5, 6, 7, 8, 9
+```
+
+* Perform [tail calls](https://en.wikipedia.org/wiki/Tail_call) whenever possible. If you see a `CALL` followed by a `RET`, just change the `CALL` to a `JP` and get rid of the `RET`.
+
+* Need a random point on the screen?
+
+```
+    rnd         v0, #3f  ; use #7f for high res mode
+    rnd         v1, #1f  ; use #3f for high res mode
+```
+
+* When setting up global use of registers, leave `V0`-`V2` always free as scratch. They are incredibly useful for loading from `[I]`, especially after performing a BCD conversion.
+
+```
+    ld          v8, 263
+    ld          b, v8      ; convert v8 to BCD at I
+    ld          v2, [i]    ; v0=2, v1=6, v2=3 
+```
+
+* Have some tips? Email them and I'll be sure to add them... Once there's enough, it might be useful to make a whole page just about that!
+
+### Examples
+
+There are a few example programs in `games/sources` for you you play around with, modify, and learn from.
 
 ## That's all folks!
 

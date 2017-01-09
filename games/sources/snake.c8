@@ -18,9 +18,9 @@
 
     ; And declare some constants values.
     declare     up as 0
-    declare     right as 1
-    declare     down as 2
-    declare     left as 3
+    declare     right as 4
+    declare     down as 8
+    declare     left as 12
 
 ; Since our snake can get pretty long, we need to define a
 ; place in memory to store it. That will be done at the end
@@ -39,7 +39,7 @@
 
     ; No initial score. Movement to the right.
     ld          score, 0
-    ld          direction, 1
+    ld          direction, right
 
     ; Load the initial snake tail and head into memory.
     ld          i, snake_tail
@@ -90,30 +90,26 @@
 
 .move
 
-    ; Test against direction (like a switch statement).
-    sne         direction, up
-    jp          move_up
-    sne         direction, right
-    jp          move_right
-    sne         direction, down
-    jp          move_down
-    sne         direction, left
-    jp          move_left
+    ; Use a jump table to perform the move.
 
-    ; Should never get here, let's break just in case.
-    break       Invalid movement direction!
-    exit
+    ld          v0, direction
+    jp          v0, do_move
 
-.move_up
+.do_move
+
+    ; move up
     add         head_y, #ff ; -1
     ret
-.move_right
+
+    ; move right
     add         head_x, 1
     ret
-.move_down
+
+    ; move down
     add         head_y, 1
     ret
-.move_left
+
+    ; move left
     add         head_x, #ff ; -1
     ret
 

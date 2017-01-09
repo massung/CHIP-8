@@ -61,7 +61,7 @@ func main() {
 	}
 
 	// set the icon
-	if icon, err := sdl.LoadBMP("data/chip_8.bmp"); err == nil {
+	if icon, err := sdl.LoadBMP("data/icon.bmp"); err == nil {
 		mask := sdl.MapRGB(icon.Format, 255, 0, 255)
 
 		// create the mask color key and set the icon
