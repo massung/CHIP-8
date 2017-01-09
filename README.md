@@ -73,6 +73,8 @@ There is a single, 16-bit address register: `I`, which is used for reading from 
 
 Last, there are two, 8-bit, timer registers (`DT` for delays and `ST` for sounds) that continuously count down at 60 Hz. The delay timer is good for time limiting your game or waiting brief periods of time. While the sound timer is non-zero a tone will be emitted.
 
+Finally, the Super CHIP-8, which was used on the HP-48 calculators, contained 8, 8-bit, user-flag registers: `R0`-`R7`. These cannot be directly used, but registers `V0`-`V7` can be saved to - and loaded from - them. This can be quite handy at times. See the `LD R, VX` and `LD VX, R` instructions below.
+
 ### Literals
 
 Literal constants can be in decimal, hexadecimal, or binary. Only decimal values can be negative, and binary allows the use of `.` in place of `0` to make it easier to visualize sprites.
@@ -163,8 +165,8 @@ And here are the instructions added for the Super CHIP-8 (a.k.a. CHIP-48):
 | 00FF   | HIGH          | Enter high resolution (128x64) mode
 | DXY0   | DRW VX, VY, 0 | Draw a 16x16 sprite at I to VX, VY (8x16 in low res mode) (*** see note)
 | FX30   | LD HF, VX     | I = address of 8x10 font character in VX (0..F) (* see note)
-| FX75   | LD R, VX      | Store V0..VX (inclusive) into HP-RPL user flags (X < 8)
-| FX85   | LD VX, R      | Load V0..VX (inclusive) from HP-RPL user flags (X < 8)
+| FX75   | LD R, VX      | Store V0..VX (inclusive) into HP-RPL user flags R0..RX (X < 8)
+| FX85   | LD VX, R      | Load V0..VX (inclusive) from HP-RPL user flags R0..RX (X < 8)
 
 Nothing special needs to be done to use the Super CHIP-8 instructions. They are just noted separately for anyone wishing to hack the code, so they are aware that they are not part of the original CHIP-8 virtual machine.
 
