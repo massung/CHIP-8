@@ -66,11 +66,11 @@ func ProcessEvents() bool {
 					VM.IncSpeed()
 				case sdl.SCANCODE_F5, sdl.SCANCODE_SPACE:
 					Paused = !Paused
-				case sdl.SCANCODE_F6:
+				case sdl.SCANCODE_F6, sdl.SCANCODE_F10:
 					if Paused {
 						VM.Step()
 					}
-				case sdl.SCANCODE_F7:
+				case sdl.SCANCODE_F7, sdl.SCANCODE_F11:
 					if Paused {
 						VM.SetOverBreakpoint()
 						Paused = false
