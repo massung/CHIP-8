@@ -210,77 +210,18 @@ Use `RESERVE` to simply write N successive zeros to the ROM in order to reserve 
 Assembly language - if you're not used to it - can be a bit daunting at first. Here's some tips to keep in mind (for CHIP-8 and assembly programming in general) that can help you along the way...
 
 * If you want to subtract a constant value from a register, remember it's easier to just add the [two's complement](https://en.wikipedia.org/wiki/Two%27s_complement) instead.
- 
-```
-    add         v0, #ff  ; -1
-```
 
 * Want to compare greater than? Use `SUB` and `SUBN`. Remember `VF` is 1 if there is **not** a borrow (read: the result is >= 0). Use `SUBN` when you want to compare, but not store the result in what you're comparing.
 
-```
-    sub         v0, v1
-    se          vf, 1   ; skip if v0 >= v1
-    
-    subn        v1, v0
-    se          vf, 1   ; skip if v0 >= v1
-```
+* Need a switch statement? Use `SE` and `SNE` followed by `JP` instructions to build a jump table.
 
-* Need a switch statement? Use `SE` and `SNE` followed by `JP` instructions to what you would do if true.
-
-```
-    se          v0, 0
-    jp          do_this_if_v0_is_0
-    se          v0, 1
-    jp          do_this_if_v0_is_1
-    se          v0, 2
-    jp          do_this_if_v0_is_2
-```
-
-* Or use a jump table based on `V0`. This isn't always possible, but handy when it is.
-
-```
-    ; v0=0, 4, 8, or 12
-    jp          v0, move
-    
-.move
-    add         y, -1   ; up
-    ret
-    add         x, 1    ; right
-    ret
-    add         y, 1    ; down
-    ret
-    add         x, -1   ; left
-    ret
-```
-
-* Have an initial setup for everything? Instead of wasting a bunch of 2-byte instructions initializing them all, put them in memory and use a single load instruction instead.
-
-```
-    ld          i, setup
-    ld          va, [i]
-    
-    ; rest of program here
-    
-.setup
-    byte        0, 1, 2, 3, 4, 5, 6, 7, 8, 9
-```
+* Use a `JP V0, label` instead of `SE` switches. This isn't always possible, but better when it is.
 
 * Perform [tail calls](https://en.wikipedia.org/wiki/Tail_call) whenever possible. If you see a `CALL` followed by a `RET`, just change the `CALL` to a `JP` and get rid of the `RET`.
 
-* Need a random point on the screen?
+* Need a random point on the screen? `RND VX, #3F` for X and `RND VY, #1F` for Y. Use `#7F` and `#3F` if in high res mode.
 
-```
-    rnd         v0, #3f  ; use #7f for high res mode
-    rnd         v1, #1f  ; use #3f for high res mode
-```
-
-* When setting up global use of registers, leave `V0`-`V2` always free as scratch. They are incredibly useful for loading from `[I]`, especially after performing a BCD conversion.
-
-```
-    ld          v8, 263
-    ld          b, v8      ; convert v8 to BCD at I
-    ld          v2, [i]    ; v0=2, v1=6, v2=3 
-```
+* When setting up global use of registers, leave `V0`-`V2` always free as scratch. They are incredibly useful for loading from `LD V2, [I]`, especially after performing a BCD conversion.
 
 * Have some tips? Email them and I'll be sure to add them... Once there's enough, it might be useful to make a whole page just about that!
 
