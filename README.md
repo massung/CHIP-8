@@ -16,30 +16,52 @@ CHIP-8 [-b] [ROM|C8]
 
 Simply pass the filename of the ROM or a .C8 assembly source file to the executable and CHIP-8 will load it, assemble if required, and begin running it. If no ROM or C8 file is specified then a default ROM ([Pong](https://en.wikipedia.org/wiki/Pong)) is loaded. 
 
-If `-b` is passed as a command line flag, then the CHIP-8 emulator will start with a breakpoint at the first address executed.
-
 Once the program is running, press `F1` at any time to see the list of key commands available to you. But here's a quick breakdown:
 
-* `F1`: show help
-* `[`: slow down emulation
-* `]`: speed up emulation
-* `BACKSPACE`: reset the emulator
-* `SPACE`: pause/break emulation
-* `F5..F8`: save image slot to disk 
-* `Control`+`F5..F8`: load image from slot
-* `F9`: toggle user breakpoint (while paused)
-* `F10`: single step instruction (while paused)
-* `F11`: dump memory at `I` register
-* `F12`: save a screenshot to `./screenshot.bmp`
+| Emulation         | Description
+|:------------------|:-----------------
+| `Backspace`       | Reset the emulator
+| `Space`           | Pause/break emulation
+| `[`               | Decrease emulation speed
+| `]`               | Increase emulation speed
 
-## Emulation Speed
+| Images            | Description
+|:------------------|:-----------------
+| `F5`..`F8`        | Save image to slot (1-4)
+| `Ctrl`+`F5`..`F8` | Load image from slot (1-4)
 
-The CHIP-8 was originally written for the [RCA CDP1802 COSMAC ELF](http://www.cosmacelf.com/), and while there is no documentation on the performance of the CHIP-8 virtual machine, after playing around with many of the games, I settled on a default of ~1,000 CHIP-8 instructions per second being emulated.
+| Debugging         | Description
+|:------------------|:-----------------
+| `F9`              | Toggle breakpoint
+| `F10`             | Single step
+| `F11`             | Dump memory at `I` register
 
-## Saved ROM Images
+### Virtual Key Mapping
+
+The original CHIP-8 had 16 virtual keys had the layout on the left, which has been mapped (by default) to the keyboard layout on the right:
+
+```
++---+---+---+---+      +---+---+---+---+
+| 1 | 2 | 3 | C |      | 1 | 2 | 3 | 4 |
++---+---+---+---+      +---+---+---+---+
+| 4 | 5 | 6 | D |      | Q | W | E | R |
++---+---+---+---+  ->  +---+---+---+---+
+| 7 | 8 | 9 | E |      | A | S | D | F |
++---+---+---+---+      +---+---+---+---+
+| A | 0 | B | F |      | Z | X | C | V |
++---+---+---+---+      +---+---+---+---+
+```
+
+Games that you make can override specific keys in the assembler using `KEYMAP` directives. But, beyond that, this is the layout for any ROMs you play.
+
+### Saved ROM Images
 
 All disk images (`F5..F8`) are saved in `~/CHIP-8/IMG_F<5..8>`. They are a perfect snapshot of the CHIP-8 virtual machine.
  
+### Debugging
+
+If `-b` is passed as a command line flag, then the CHIP-8 emulator will start with a breakpoint at the first address executed.
+
 ## Assembler
 
 While playing the games that exist for the CHIP-8 might be fun for a while, the real fun is in creating your own games and seeing just how creative you can be with such a limited machine!
@@ -155,55 +177,16 @@ _NOTE: Nothing special needs to be done to use the Super CHIP-8 instructions. Th
 
 The assembler understands - beyond instructions - the following directives:
 
-* `DECLARE` .. `AS`
-* `BREAK`
-* `ASSERT`
-* `BYTE`
-* `WORD`
-* `ALIGN`
-* `RESERVE`
-
-Use `DECLARE` .. `AS` to declare a global identifier for use in lieu of a literal constant, register, or label. Very handy when using specific registers as global variables to make the code more clear and easy to refactor. _Unlike labels, declares must happen **before** being used._
-
-```
-    declare score as v5
-```
-
-Use `BREAK` to create a breakpoint in code. Nothing is written to the ROM, but when the next instruction is reached, the emulator will pause and allow you to single-step the code and/or inspect memory, registers, etc. Any text following the `BREAK` will be visible in the log upon hitting the breakpoint.
-
-```
-    break   check player death
-```
-
-Use `ASSERT` to create a conditional breakpoint. It will only trigger if `VF` is _non-zero_ (i.e. it can be used for conditions other than carry, borrow, address overflow, and collision detection) when hit.
-
-```
-    assert  score overflowed!
-```
-
-Use `BYTE` to write successive bytes to the ROM. This can take one or more byte literals or strings as arguments.
-
-```
-    byte    1, #FF, $1001, $1..1, "Hello, world!"
-```
-
-Use `WORD` to write successive 2-byte words to the ROM. Remember that all words are stored with big-endian (MSB first) byte ordering.
-
-```
-    word    1, #FFFF
-```
-
-Use `ALIGN` to align the ROM to a specific byte boundary. The boundary **must** be a power of 2.
-
-```
-    align   32
-```
-
-Use `RESERVE` to simply write N successive zeros to the ROM in order to reserve memory. Technically no different than `BYTE 0, 0, 0, 0` just easier and more obvious.
-
-```
-    reserve 256
-```
+| Directive | Usage              | Description
+|:----------|:-------------------|:--------
+| `DECLARE` | `DECLARE ID AS ..` | Declare an identifier that maps to a register, literal, or label. Must be declared before being used.
+| `BREAK`   | `BREAK ..`         | Create a breakpoint. No instruction is written, but the emulator will break before the next instruction is executed.
+| `ASSERT`  | `ASSERT ..`        | Create a conditional breakpoint. The emulator will only break if `VF` is non-zero when the assert is hit. 
+| `KEYMAP`  | `KEYMAP K TO ..`   | Redefine the virtual key `K` to a key on the keyboard.
+| `BYTE`    | `BYTE ..`          | Write bytes to the ROM. This can take bytes literals or text strings.
+| `WORD`    | `WORD ..`          | Write 2-byte words to the ROM in big-endian (MSB first) byte order.
+| `ALIGN`   | `ALIGN BOUNDARY`   | Align the ROM to a power of 2 byte boundary.
+| `RESERVE` | `RESERVE N`        | Write N zero-bytes to the ROM.
 
 ### CHIP-8 Tips & Tricks
 
