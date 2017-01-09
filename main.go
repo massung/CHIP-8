@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"math/rand"
 	"path/filepath"
 	"runtime"
@@ -18,6 +17,10 @@ var (
 	/// True if the ROM should load paused.
 	///
 	Break bool
+
+	/// True if pausing emulation (single stepping).
+	///
+	Paused bool
 
 	/// The CHIP-8 virtual machine.
 	///
@@ -69,13 +72,9 @@ func main() {
 	// set the title
 	Window.SetTitle("CHIP-8")
 
-	// initialize subsystems
-	InitDebug()
-
 	// show copyright information
-	fmt.Println("CHIP-8, Copyright 2017 by Jeffrey Massung")
-	fmt.Println("All rights reserved")
-	fmt.Println()
+	Log("CHIP-8, Copyright 2017 by Jeffrey Massung")
+	Log("All rights reserved")
 
 	// create a new CHIP-8 virtual machine
 	Load(file)
@@ -93,7 +92,7 @@ func main() {
 	video := time.NewTicker(time.Second / 60)
 
 	// notify that the main loop has started
-	fmt.Println("\nStarting program; press 'H' for help")
+	Logln("Starting program; press 'H' for help")
 
 	// loop until window closed or user quit
 	for ProcessEvents() {
@@ -105,8 +104,8 @@ func main() {
 
 			switch res.(type) {
 			case chip8.Breakpoint:
-				fmt.Println()
-				fmt.Println(res.Error())
+				Log()
+				Log(res.Error())
 
 				// break the emulation
 				Paused = true
@@ -131,19 +130,19 @@ func LoadDialog() {
 
 func Load(file string) {
 	if file == "" {
-		fmt.Print("Loading PONG... ")
+		Logln("Loading PONG... ")
 		VM, _ = chip8.LoadROM(chip8.Pong)
 	} else {
 		base := filepath.Base(file)
 
 		// show the action being taken
-		fmt.Println("Loading", base)
+		Logln("Loading", base)
 
 		// is this a chip-8 assembly source file?
 		if strings.ToUpper(filepath.Ext(base)) == ".C8" {
 			asm, err := chip8.Assemble(file)
 			if err != nil {
-				fmt.Println(err)
+				Log(err.Error())
 			}
 
 			// even on error, the assembly is valid

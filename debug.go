@@ -1,75 +1,73 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"os"
+	"strings"
 
 	"github.com/veandco/go-sdl2/sdl"
 )
 
 var (
-	/// True if pausing emulation (single stepping).
-	///
-	Paused bool
-
 	/// Current debug window address.
 	///
 	Address uint
 
-	/// Redirected stdout text to a channel.
-	///
-	LogChan chan string
-
 	/// Create a buffer to hold all logged text.
 	///
-	Log []string
+	LogBuf []string
 
 	/// Current position of the log.
 	///
 	LogPos int
 )
 
-/// Redirect STDOUT text to a log that can be displayed.
+/// Output a new line to the log.
 ///
-func InitDebug() {
-	r, w, err := os.Pipe()
-	if err != nil {
-		panic(err)
+func Log(s ...string) {
+	scroll := LogPos == len(LogBuf)
+
+	// add the new line
+	LogBuf = append(LogBuf, strings.Join(s, " "))
+
+	if scroll {
+		LogPos = len(LogBuf)
 	}
+}
 
-	// create the log buffer
-	LogChan = make(chan string)
+/// Outline a new line to the log, with a newline before it.
+///
+func Logln(s ...string) {
+	scroll := LogPos == len(LogBuf)
 
-	// redirect stdout
-	os.Stdout = w
+	// append the lines
+	LogBuf = append(LogBuf, "", strings.Join(s, " "))
 
-	// spawn a process to capture stdout
-	go func() {
-		scanner := bufio.NewScanner(r)
+	if scroll {
+		LogPos = len(LogBuf)
+	}
+}
 
-		for scanner.Scan() {
-			LogChan <- scanner.Text()
-		}
-	}()
+/// Output a formatted line to the log.
+///
+func Logf(f string, a ...interface{}) {
+	Log(fmt.Sprintf(f, a...))
 }
 
 /// Show the HELP text in the log.
 ///
 func DebugHelp() {
-	fmt.Println()
-	fmt.Println("Keys        | Description")
-	fmt.Println("------------+-------------------------------------")
-	fmt.Println("BACK        | Reboot (+CTRL to break on reset)")
-	fmt.Println("[ / ]       | Deacrease/increase speed")
-	fmt.Println("HOME / END  | Scroll log")
-	fmt.Println("PGUP / PGDN | Scroll log")
-	fmt.Println("F3          | Load ROM / C8 assembler")
-	fmt.Println("F5          | Pause/break")
-	fmt.Println("F6          | Step")
-	fmt.Println("F7          | Step over")
-	fmt.Println("F8          | Debug memory")
-	fmt.Println("F9          | Set breakpoint")
+	Logln("Keys        | Description")
+	Log("------------+-------------------------------------")
+	Log("BACK        | Reboot (+CTRL to break on reset)")
+	Log("[ / ]       | Deacrease/increase speed")
+	Log("HOME / END  | Scroll log")
+	Log("PGUP / PGDN | Scroll log")
+	Log("F3          | Load ROM / C8 assembler")
+	Log("F5          | Pause/break")
+	Log("F6          | Step")
+	Log("F7          | Step over")
+	Log("F8          | Debug memory")
+	Log("F9          | Set breakpoint")
 }
 
 /// DebugAssembly renders the disassembled instructions around
@@ -137,55 +135,48 @@ func DebugRegisters(x, y int) {
 /// Show a memory dump at I. Useful for sprite debugging.
 ///
 func DebugMemory() {
+	Logln("Memory dump near I...")
+
+	// starting address
 	a := int(VM.I) & 0xFFF0
 
-	fmt.Println("\nMemory dump near I...")
+	// 12 bytes will be written here
+	s := make([]string, 13)
 
 	// show 8 lines of 12 bytes each
 	for line := 0; line < 8; line++ {
 		n := a+line*12
 
 		// memory address
-		fmt.Printf(" %04X -", n)
+		s[0] = fmt.Sprintf(" %04X -", n)
 
-		// 12-byte row
+		// fill in the 12-byte row
 		for i := 0;i < 12;i++ {
 			if n+i < 0x10000 {
-				fmt.Printf(" %02X", VM.Memory[n + i])
+				s[i+1] = fmt.Sprintf("%02X", VM.Memory[n + i])
+			} else {
+				s[i+1] = ""
 			}
 		}
 
-		// end of line
-		fmt.Println()
+		Log(s...)
 	}
 }
 
 /// Show the current log text (and get new text).
 ///
 func DebugLog(x, y int) {
-	select {
-	case text := <-LogChan:
-		if LogPos == len(Log) - 1 {
-			LogPos += 1
-		}
-
-		// append the new line to the log
-		Log = append(Log, text)
-	default:
-	}
-
-	// starting line to display for the log
 	line := LogPos - 15
 	if line < 0 {
 		line = 0
 	}
 
 	// display the log
-	for i := 0;i < 16 && line < len(Log);i++ {
-		if len(Log[line]) >= 52 {
-			DrawText(Log[line][:49] + "...", x, y)
+	for i := 0;i < 16 && line < len(LogBuf);i++ {
+		if len(LogBuf[line]) >= 52 {
+			DrawText(LogBuf[line][:49] + "...", x, y)
 		} else {
-			DrawText(Log[line], x, y)
+			DrawText(LogBuf[line], x, y)
 		}
 
 		// advance to the next line
@@ -210,7 +201,7 @@ func DebugLogScroll(d int) {
 	}
 
 	// clamp to end
-	if LogPos > len(Log) - 1 {
+	if LogPos >= len(LogBuf) {
 		DebugLogEnd()
 	}
 }
@@ -224,5 +215,5 @@ func DebugLogHome() {
 /// Scroll to the end of the log.
 ///
 func DebugLogEnd() {
-	LogPos = len(Log) - 1
+	LogPos = len(LogBuf)
 }

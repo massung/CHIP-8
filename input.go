@@ -37,7 +37,7 @@ func ProcessEvents() bool {
 		case *sdl.KeyDownEvent:
 			if key, ok := KeyMap[ev.Keysym.Scancode]; ok {
 				VM.PressKey(key)
-			} else if ev.Repeat == 0 {
+			} else {
 				switch ev.Keysym.Scancode {
 				case sdl.SCANCODE_ESCAPE:
 					return false
@@ -45,11 +45,9 @@ func ProcessEvents() bool {
 					VM.Reset()
 
 					// holding control during reset will reboot paused
-					if ev.Keysym.Mod & sdl.KMOD_CTRL != 0 {
+					if ev.Keysym.Mod&sdl.KMOD_CTRL != 0 {
 						Paused = true
 					}
-				case sdl.SCANCODE_F3:
-					LoadDialog()
 				case sdl.SCANCODE_UP, sdl.SCANCODE_PAGEUP:
 					DebugLogScroll(-1)
 				case sdl.SCANCODE_DOWN, sdl.SCANCODE_PAGEDOWN:
@@ -58,6 +56,8 @@ func ProcessEvents() bool {
 					DebugLogHome()
 				case sdl.SCANCODE_END:
 					DebugLogEnd()
+				case sdl.SCANCODE_F3:
+					LoadDialog()
 				case sdl.SCANCODE_H:
 					DebugHelp()
 				case sdl.SCANCODE_LEFTBRACKET:
@@ -76,7 +76,7 @@ func ProcessEvents() bool {
 						Paused = false
 					}
 				case sdl.SCANCODE_F8:
-					if Paused {
+					if Paused  {
 						DebugMemory()
 					}
 				case sdl.SCANCODE_F9:
