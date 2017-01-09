@@ -115,22 +115,22 @@ func DebugAssembly(x, y int) {
 ///
 func DebugRegisters(x, y int) {
 	for i := 0;i < 16;i++ {
-		DrawText(fmt.Sprintf("V%X - #%02X", i, VM.V[i]), x, y + i * 10)
+		DrawText(fmt.Sprintf("V%X = #%02X", i, VM.V[i]), x, y + i * 10)
 	}
 
 	// shift over to next column
 	x += 98
 
 	// show the v-registers
-	DrawText(fmt.Sprintf("PC - #%04X", VM.PC), x, y)
-	DrawText(fmt.Sprintf("SP - #%04X", VM.SP), x, y + 10)
-	DrawText(fmt.Sprintf("I  - #%04X", VM.I), x, y + 30)
-	DrawText(fmt.Sprintf("DT - #%02X", VM.GetDelayTimer()), x, y + 50)
-	DrawText(fmt.Sprintf("ST - #%02X", VM.GetSoundTimer()), x, y + 60)
+	DrawText(fmt.Sprintf("PC = #%04X", VM.PC), x, y)
+	DrawText(fmt.Sprintf("SP = #%04X", VM.SP), x, y + 10)
+	DrawText(fmt.Sprintf(" I = #%04X", VM.I), x, y + 30)
+	DrawText(fmt.Sprintf("DT = #%02X", VM.GetDelayTimer()), x, y + 50)
+	DrawText(fmt.Sprintf("ST = #%02X", VM.GetSoundTimer()), x, y + 60)
 
 	// show the HP-RPL user flags
 	for i := 0;i < 8;i++ {
-		DrawText(fmt.Sprintf("R%d - #%02X", i, VM.R[i]), x, y+80+i*10)
+		DrawText(fmt.Sprintf("R%d = #%02X", i, VM.R[i]), x, y+80+i*10)
 	}
 }
 
