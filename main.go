@@ -6,11 +6,11 @@ import (
 	"math/rand"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/massung/chip-8/chip8"
 	"github.com/veandco/go-sdl2/sdl"
-	"strings"
 )
 
 var (
@@ -130,11 +130,13 @@ func Load() {
 
 		// is this a chip-8 assembly source file?
 		if strings.ToUpper(filepath.Ext(base)) == ".C8" {
-			if asm, err := chip8.Assemble(File); err == nil {
-				VM, _ = chip8.LoadAssembly(asm)
-			} else {
+			asm, err := chip8.Assemble(File)
+			if err != nil {
 				fmt.Println(err)
 			}
+
+			// even on error, the assembly is valid
+			VM, _ = chip8.LoadAssembly(asm)
 		} else {
 			VM, _ = chip8.LoadFile(File)
 		}

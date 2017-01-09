@@ -22,9 +22,9 @@ type Assembly struct {
 	///
 	Labels map[string]int
 
-	/// Defines text substitution macros.
+	/// Declares text substitution macros.
 	///
-	Defines map[string]token
+	Declares map[string]token
 
 	/// Addresses with unresolved labels.
 	///
@@ -41,7 +41,7 @@ func Assemble(file string) (out *Assembly, err error) {
 		ROM: make([]byte, 0x200, 0x1000),
 		Breakpoints: make([]Breakpoint, 0, 10),
 		Labels: make(map[string]int),
-		Defines: make(map[string]token),
+		Declares: make(map[string]token),
 		Unresolved: make(map[int]string),
 	}
 
@@ -131,7 +131,11 @@ func (a *Assembly) assemble(s *tokenScanner) {
 	case t.typ == TOKEN_INSTRUCTION:
 		a.assembleInstruction(t.val.(string), s)
 	case t.typ == TOKEN_BREAK:
-		a.assembleBreakpoint(s)
+		a.assembleBreakpoint(s, false)
+	case t.typ == TOKEN_ASSERT:
+		a.assembleBreakpoint(s, true)
+	case t.typ == TOKEN_DECLARE:
+		a.assembleDeclare(s)
 	case t.typ != TOKEN_END:
 		panic("unexpected token")
 	}
@@ -140,16 +144,50 @@ func (a *Assembly) assemble(s *tokenScanner) {
 /// Scan for a label and add it to the assembly.
 ///
 func (a *Assembly) assembleLabel(label string) {
+	if _, exists := a.Declares[label]; exists {
+		panic("label exists as declare")
+	}
+	if _, exists := a.Labels[label]; exists {
+		panic("duplicate label")
+	}
+
 	a.Labels[label] = len(a.ROM)
 }
 
 /// Create a new breakpoint at the current Address.
 ///
-func (a *Assembly) assembleBreakpoint(s *tokenScanner) {
+func (a *Assembly) assembleBreakpoint(s *tokenScanner, conditional bool) {
 	a.Breakpoints = append(a.Breakpoints, Breakpoint{
 		Address: len(a.ROM),
+		Conditional: conditional,
 		Reason: s.scanToEnd().val.(string),
 	})
+}
+
+/// Create a new declaration identifier.
+///
+func (a *Assembly) assembleDeclare(s *tokenScanner) {
+	if t := s.scanToken(); t.typ == TOKEN_REF {
+		id := t.val.(string)
+
+		// make sure it doesn't already exist
+		if _, exists := a.Declares[id]; exists {
+			panic("duplicate declare .. as")
+		}
+		if _, exists := a.Labels[id]; exists {
+			panic("declare exists as label")
+		}
+
+		// scan what to be declared as
+		if as := s.scanToken(); as.typ == TOKEN_AS {
+			a.Declares[id] = as.val.(token)
+
+			// successfully declared
+			return
+		}
+	}
+
+	panic("illegal declare .. as")
 }
 
 /// Compile a single instruction into the assembly.
@@ -216,8 +254,6 @@ func (a *Assembly) assembleInstruction(i string, s *tokenScanner) {
 		a.ROM = append(a.ROM, a.assembleBYTE(tokens)...)
 	case "WORD":
 		a.ROM = append(a.ROM, a.assembleWORD(tokens)...)
-	case "TEXT":
-		a.ROM = append(a.ROM, a.assembleTEXT(tokens)...)
 	case "ALIGN":
 		a.ROM = append(a.ROM, a.assembleALIGN(tokens)...)
 	case "RESERVE":
@@ -229,7 +265,7 @@ func (a *Assembly) assembleInstruction(i string, s *tokenScanner) {
 ///
 func (a *Assembly) assembleOperand(t token) token {
 	if t.typ == TOKEN_REF {
-		if def, ok := a.Defines[t.val.(string)]; ok {
+		if def, ok := a.Declares[t.val.(string)]; ok {
 			return a.assembleOperand(def)
 		}
 	}
@@ -753,11 +789,17 @@ func (a *Assembly) assembleBYTE(tokens []token) []byte {
 	for _, t := range tokens {
 		op := a.assembleOperand(t)
 
-		if op.typ != TOKEN_LIT || op.val.(int) > 0xFF {
-			panic("invalid byte")
+		switch op.typ {
+		case TOKEN_LIT:
+			if op.val.(int) > 0xFF {
+				panic("invalid byte")
+			}
+
+			b = append(b, byte(t.val.(int)))
+		case TOKEN_TEXT:
+			b = append(b, op.val.(string)...)
 		}
 
-		b = append(b, byte(t.val.(int)))
 	}
 
 	return b
@@ -780,24 +822,6 @@ func (a *Assembly) assembleWORD(tokens []token) []byte {
 
 		// store msb first
 		b = append(b, byte(msb), byte(lsb))
-	}
-
-	return b
-}
-
-/// Assemble a TEXT instruction
-///
-func (a *Assembly) assembleTEXT(tokens []token) []byte {
-	b := make([]byte, 0)
-
-	for _, t := range tokens {
-		op := a.assembleOperand(t)
-
-		if op.typ != TOKEN_TEXT {
-			panic("invalid text string")
-		}
-
-		b = append(b, op.val.(string)...)
 	}
 
 	return b

@@ -33,6 +33,9 @@ const (
 	TOKEN_LIT
 	TOKEN_TEXT
 	TOKEN_BREAK
+	TOKEN_ASSERT
+	TOKEN_DECLARE
+	TOKEN_AS
 )
 
 /// A parsed, lexical token.
@@ -251,16 +254,36 @@ func (s *tokenScanner) scanIdentifier() token {
 		return token{typ: TOKEN_DT}
 	case "S", "ST":
 		return token{typ: TOKEN_ST}
-	case "CLS", "RET", "EXIT", "LOW", "HIGH", "SCU", "SCD", "SCR", "SCL", "SYS", "JP", "CALL", "SE", "SNE", "SKP", "SKNP", "LD", "OR", "AND", "XOR", "ADD", "SUB", "SUBN", "SHR", "SHL", "RND", "DRW", "BYTE", "WORD", "TEXT", "ALIGN", "RESERVE":
+	case "CLS", "RET", "EXIT", "LOW", "HIGH", "SCU", "SCD", "SCR", "SCL", "SYS", "JP", "CALL", "SE", "SNE", "SKP", "SKNP", "LD", "OR", "AND", "XOR", "ADD", "SUB", "SUBN", "SHR", "SHL", "RND", "DRW", "BYTE", "WORD", "ALIGN", "RESERVE":
 		return token{typ: TOKEN_INSTRUCTION, val: id}
-	case "BREAK", "BRK":
+	case "BREAK":
 		return token{typ: TOKEN_BREAK}
+	case "ASSERT":
+		return token{typ: TOKEN_ASSERT}
+	case "DECLARE":
+		return token{typ: TOKEN_DECLARE}
+	case "AS":
+		return s.scanAs()
 	}
 
 	return token{typ: TOKEN_REF, val: id}
 }
 
-/// Scan an indirect Address of.
+/// Scan an AS token.
+///
+func (s *tokenScanner) scanAs() token {
+	t := s.scanToken()
+
+	switch t.typ {
+	case TOKEN_LIT, TOKEN_REF, TOKEN_V, TOKEN_R, TOKEN_I, TOKEN_B, TOKEN_F, TOKEN_HF, TOKEN_K, TOKEN_DT, TOKEN_ST:
+		return token{typ: TOKEN_AS, val: t}
+	}
+
+	// only literals, references, and registers can be declared
+	panic("illegal declare .. as")
+}
+
+/// Scan an indirect address of.
 ///
 func (s *tokenScanner) scanIndirection() token {
 	s.pos += 1

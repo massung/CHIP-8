@@ -95,7 +95,7 @@ type CHIP_8 struct {
 
 	/// A mapping of address breakpoints.
 	///
-	Breakpoints map[int]string
+	Breakpoints map[int]Breakpoint
 }
 
 /// Breakpoint is an implementation of error.
@@ -108,12 +108,20 @@ type Breakpoint struct {
 	/// Reason is used to identify what id happening in code.
 	///
 	Reason  string
+
+	/// Conditional is true if the breakpoint only trips when VF != 0.
+	///
+	Conditional bool
 }
 
 /// Error implements the error interface for a Breakpoint.
 ///
 func (b Breakpoint) Error() string {
-	return fmt.Sprintf("hit breakpoint @ %04X: %s", b.Address, b.Reason)
+	if b.Conditional {
+		return fmt.Sprintf("hit assert @ %04X: %s", b.Address, b.Reason)
+	} else {
+		return fmt.Sprintf("hit breakpoint @ %04X: %s", b.Address, b.Reason)
+	}
 }
 
 /// SysCall is an implementation of error.
@@ -140,7 +148,7 @@ func LoadROM(program []byte) (*CHIP_8, int) {
 
 	// initialize any data that doesn't Reset()
 	vm := &CHIP_8{
-		Breakpoints: make(map[int]string),
+		Breakpoints: make(map[int]Breakpoint),
 		Speed: 1000,
 	}
 
@@ -178,7 +186,7 @@ func LoadAssembly(asm *Assembly) (*CHIP_8, int) {
 
 	// set all the breakpoints from the assembly
 	for _, b := range asm.Breakpoints {
-		vm.SetBreakpoint(b.Address, b.Reason)
+		vm.SetBreakpoint(b)
 	}
 
 	return vm, size
@@ -269,9 +277,9 @@ func (vm *CHIP_8) DecSpeed() {
 
 /// SetBreakpoint at a ROM Address to the CHIP-8 virtual machine.
 ///
-func (vm *CHIP_8) SetBreakpoint(address int, reason string) {
-	if address >= 0x200 && address < len(vm.ROM) {
-		vm.Breakpoints[address] = reason
+func (vm *CHIP_8) SetBreakpoint(b Breakpoint) {
+	if b.Address >= 0x200 && b.Address < len(vm.ROM) {
+		vm.Breakpoints[b.Address] = b
 	}
 }
 
@@ -287,7 +295,7 @@ func (vm *CHIP_8) ToggleBreakpoint() {
 	a := int(vm.PC)
 
 	if _, ok := vm.Breakpoints[a]; !ok {
-		vm.SetBreakpoint(a, "User break")
+		vm.SetBreakpoint(Breakpoint{Address: a, Reason: "User break"})
 	} else {
 		vm.RemoveBreakpoint(a)
 	}
@@ -296,7 +304,7 @@ func (vm *CHIP_8) ToggleBreakpoint() {
 /// ClearBreakpoints removes all breakpoints.
 ///
 func (vm *CHIP_8) ClearBreakpoints() {
-	vm.Breakpoints = make(map[int]string)
+	vm.Breakpoints = make(map[int]Breakpoint)
 }
 
 /// PressKey emulates a CHIP-8 key being pressed.
@@ -502,8 +510,10 @@ func (vm *CHIP_8) Step() error {
 	vm.Cycles += 1
 
 	// if at a breakpoint, return it
-	if s, ok := vm.Breakpoints[int(vm.PC)]; ok {
-		return Breakpoint{Address: int(vm.PC), Reason: s}
+	if b, ok := vm.Breakpoints[int(vm.PC)]; ok {
+		if !b.Conditional || vm.V[0xF] != 0 {
+			return b
+		}
 	}
 
 	return nil

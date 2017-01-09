@@ -56,7 +56,152 @@ Each line of assembly uses the following syntax:
 .label    instruction  arg0, arg1, ...   ; comment
 ```
 
-TODO: go over the instruction set, binary, hex, register macros, and tips/tricks.
+#### Registers and Literals
+
+The CHIP-8 has 16, 8-bit virtual registers: `V0`, `V1`, `V2`, `V3`, `V4`, `V5`, `V6`, `V7`, `V8`, `V9`, `VA`, `VB`, `VC`, `VD`, `VE`, and `VF`. All of these are considered general purpose registers except for `VF` which is used for carry, borrow, shift, overflow, and collision detection.
+ 
+There is a single, 16-bit address register: `I`, which is used for reading from - and writing to - memory.
+
+Last, there are two 8-bit timer registers (`DT` for delays and `ST` for sounds) that continuously count down at 60 Hz. The delay timer is good for time limiting your game and as long as the sound timer is non-zero a tone will be emitted.
+
+There are two literal types understood by the assembler: numbers and text strings. The bases for numbers accepted are 10, 16 (`#FF`), and 2 (`$10`). Base (binary) is special in that - since it is often used for creating sprite data - a `.` can be used instead of `0`. For example:
+  
+```
+    LD   VC, 10   ; VC = 10
+    ADD  V3, #FE  ; V3 = V3 - 2
+    
+    ; draw the ball sprite
+    LD   I, ball
+    DRW  V3, VC, 6
+    
+.ball
+    BYTE $..1111..
+    BYTE $.1....1.
+    BYTE $1......1
+    BYTE $1......1
+    BYTE $.1....1.
+    BYTE $..1111..
+```
+
+Text literals can be added with single or double quotes, but there is no escape character. Usually this is just to add text information to the final ROM and not for any game data.
+
+```
+    BYTE "A little game made by ME!"
+```
+
+#### Instruction Set
+
+Here is the CHIP-8 instructions. The Super CHIP-8 instructions follow after the basic instruction set.
+
+| Opcode | Mnemonic      | Description
+|:-------|:--------------|:---------------------------------------------------------------
+| 00E0   | CLS           | Clear video memory
+| 00EE   | RET           | Return from subroutine
+| 0NNN   | SYS NNN       | Call CDP1802 subroutine at NNN
+| 1NNN   | CALL NNN      | Call CHIP-8 subroutine at NNN
+| 2NNN   | JP NNN        | Jump to address NNN
+| BNNN   | JP V0, NNN    | Jump to address NNN + V0
+| 3XNN   | SE VX, NN     | Skip next instruction if VX == NN
+| 4XNN   | SNE VX, NN    | Skip next instruction if VX != NN
+| 5XY0   | SE VX, VY     | Skip next instruction if VX == VY
+| 9XY0   | SNE VX, VY    | Skip next instruction if VX != VY
+| EX9E   | SKP VX        | Skip next instruction if key(VX) is pressed
+| EXA1   | SKNP VX       | Skip next instruction if key(VX) is not pressed
+| FX0A   | LD VX, K      | Wait for key press, store key pressed in VX
+| 6XNN   | LD VX, NN     | VX = NN
+| 8XY0   | LD VX, VY     | VX = VY
+| FX07   | LD VX, DT     | VX = DT
+| FX15   | LD DT, VX     | DT = VX
+| FX18   | LD ST, VX     | ST = VX
+| ANNN   | LD I, NNN     | I = NNN
+| FX29   | LD F, VX      | I = address of 4x5 font character in VX (0..F)
+| FX33   | LD B, VX      | Store BCD representation of VX at I (100), I+1 (10), and I+2 (1)
+| FX55   | LD [I], VX    | Store V0..VX (inclusive) to memory starting at I
+| FX65   | LD VX, [I]    | Load V0..VX (inclusive) from memory starting at I
+| FX1E   | ADD I, VX     | I = I + VX; VF = if I > 0xFFF then 1 else 0
+| 7XNN   | ADD VX, NN    | VX = VX + NN
+| 8XY4   | ADD VX, VY    | VX = VX + VY; VF = if carry then 1 else 0
+| 8XY5   | SUB VX, VY    | VX = VX - VY; VF = if borrow then 0 else 1
+| 8XY7   | SUBN VX, VY   | VX = VY - VX; VF = if borrow then 0 else 1
+| 8XY1   | OR VX, VY     | VX = VX OR VY
+| 8XY2   | AND VX, VY    | VX = VX AND VY
+| 8XY3   | XOR VX, VY    | VX = VX XOR VY
+| 8XY6   | SHR VX        | VF = LSB(VX); VX = VX >> 1
+| 8XYE   | SHL VX        | VF = MSB(VX); VX = VX << 1
+| CXNN   | RND VX, NN    | VX = RND() AND NN
+| DXYN   | DRW VX, VY, N | Draw 8xN sprite at I to VX, VY; VF = if collision then 1 else 0
+
+And here are the instructions added for the Super CHIP-8 (a.k.a. CHIP-48):
+
+| Opcode | Mnemonic      | Description
+|:-------|:--------------|:---------------------------------------------------------------
+| 00BN   | SCU N         | Scroll up N pixels (N/2 pixels in low res mode)
+| 00CN   | SCD N         | Scroll down N pixels (N/2 pixels in low res mode)
+| 00FB   | SCR           | Scroll right 4 pixels (2 pixels in low res mode)
+| 00FC   | SCL           | Scroll left 4 pixels (2 pixels in low res mode)
+| 00FD   | EXIT          | Exit the interpreter; this causes the VM to infinite loop
+| 00FE   | LOW           | Enter low resolution (64x32) mode; this is the default mode
+| 00FF   | HIGH          | Enter high resolution (128x64) mode
+| DXY0   | DRW VX, VY, 0 | Draw a 16x16 sprite at I to VX, VY (8x16 in low res mode)
+| FX30   | LD HF, VX     | I = address of 8x10 font character in VX (0..F)
+| FX75   | LD R, VX      | Store V0..VX (inclusive) into HP-RPL user flags (X < 8)
+| FX85   | LD VX, R      | Load V0..VX (inclusive) from HP-RPL user flags (X < 8)
+
+_NOTE: Nothing special needs to be done to use the Super CHIP-8 instructions. They are just noted separately for anyone wishing to hack the code, so they are aware that they are not part of the original CHIP-8 virtual machine._
+
+#### Assembler Directives
+
+The assembler understands - beyond instructions - the following directives:
+
+* `DECLARE` .. `AS`
+* `BREAK`
+* `ASSERT`
+* `BYTE`
+* `WORD`
+* `ALIGN`
+* `RESERVE`
+
+Use `DECLARE` .. `AS` to declare a global identifier for use in lieu of a literal constant, register, or label. Very handy when using specific registers as global variables to make the code more clear and easy to refactor. _Unlike labels, declares must happen **before** being used._
+
+```
+    declare score as v5
+```
+
+Use `BREAK` to create a breakpoint in code. Nothing is written to the ROM, but when the next instruction is reached, the emulator will pause and allow you to single-step the code and/or inspect memory, registers, etc. Any text following the `BREAK` will be visible in the log upon hitting the breakpoint.
+
+```
+    break   check player death
+```
+
+Use `ASSERT` to create a conditional breakpoint. It will only trigger if `VF` is _non-zero_ (i.e. it can be used for conditions other than carry, borrow, address overflow, and collision detection) when hit.
+
+```
+    assert  score overflowed!
+```
+
+Use `BYTE` to write successive bytes to the ROM. This can take one or more byte literals or strings as arguments.
+
+```
+    byte    1, #FF, $1001, $1..1, "Hello, world!"
+```
+
+Use `WORD` to write successive 2-byte words to the ROM. Remember that all words are stored with big-endian (MSB first) byte ordering.
+
+```
+    word    1, #FFFF
+```
+
+Use `ALIGN` to align the ROM to a specific byte boundary. The boundary **must** be a power of 2.
+
+```
+    align   32
+```
+
+Use `RESERVE` to simply write N successive zeros to the ROM in order to reserve memory. Technically no different than `BYTE 0, 0, 0, 0` just easier and more obvious.
+
+```
+    reserve 256
+```
 
 ## That's all folks!
 
