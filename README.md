@@ -21,7 +21,7 @@ Once the program is running, press `H` at any time to see the list of key comman
 | Emulation         | Description
 |:------------------|:-----------------
 | `Back`            | Reset the emulator
-| `Ctrl`+`Back`     | Reset and pause
+| `Ctrl`+`Back`     | Reset and break
 | `[`               | Decrease emulation speed
 | `]`               | Increase emulation speed
 | `F3`              | Load ROM or C8 assembler file
@@ -39,28 +39,15 @@ Once the program is running, press `H` at any time to see the list of key comman
 The original CHIP-8 had 16 virtual keys had the layout on the left, which has been mapped (by default) to the keyboard layout on the right:
 
 ```
-+---+---+---+---+      +---+---+---+---+
-| 1 | 2 | 3 | C |      | 1 | 2 | 3 | 4 |
-+---+---+---+---+      +---+---+---+---+
-| 4 | 5 | 6 | D |      | Q | W | E | R |
-+---+---+---+---+  ->  +---+---+---+---+
-| 7 | 8 | 9 | E |      | A | S | D | F |
-+---+---+---+---+      +---+---+---+---+
-| A | 0 | B | F |      | Z | X | C | V |
-+---+---+---+---+      +---+---+---+---+
+ 1 2 3 C                                   1 2 3 4
+ 4 5 6 D    This is emulated with these    Q W E R
+ 7 8 9 E    keyboard keys -->              A S D F
+ A 0 B F                                   Z X C V
 ```
 
 Games that you make can override specific keys in the assembler using `KEYMAP` directives. But, beyond that, this is the layout for any ROMs you play.
 
-### Saved ROM Images
-
-All disk images (`F1..F4`) are saved in `~/CHIP-8/SAVED_IMAGE_<1..4>`. They are a perfect snapshot of the CHIP-8 virtual machine.
- 
-### Debugging
-
-If `-b` is passed as a command line flag, then the CHIP-8 emulator will start with a breakpoint at the first address executed.
-
-## Assembler
+## The Assembler
 
 While playing the games that exist for the CHIP-8 might be fun for a while, the real fun is in creating your own games and seeing just how creative you can be with such a limited machine!
 
@@ -78,40 +65,40 @@ Each line of assembly uses the following syntax:
 
 A label **must** appear at the very beginning of the line, and there **must** be at least a single whitespace character before the instruction or directive of a line (i.e. an instruction cannot appear at the beginning of a line).
 
-### Registers and Literals
+### Registers
 
 The CHIP-8 has 16, 8-bit virtual registers: `V0`, `V1`, `V2`, `V3`, `V4`, `V5`, `V6`, `V7`, `V8`, `V9`, `VA`, `VB`, `VC`, `VD`, `VE`, and `VF`. All of these are considered general purpose registers except for `VF` which is used for carry, borrow, shift, overflow, and collision detection.
  
 There is a single, 16-bit address register: `I`, which is used for reading from - and writing to - memory.
 
-Last, there are two 8-bit timer registers (`DT` for delays and `ST` for sounds) that continuously count down at 60 Hz. The delay timer is good for time limiting your game and as long as the sound timer is non-zero a tone will be emitted.
+Last, there are two, 8-bit, timer registers (`DT` for delays and `ST` for sounds) that continuously count down at 60 Hz. The delay timer is good for time limiting your game or waiting brief periods of time. While the sound timer is non-zero a tone will be emitted.
 
-There are two literal types understood by the assembler: numbers and text strings. The bases for numbers accepted are 10, 16 (`#FF`), and 2 (`$10`). Base 2 (binary) is a little special in that - since it is often used for creating sprite data - a `.` can be used instead of `0`. For example:
+### Literals
+
+Literal constants can be in decimal, hexadecimal, or binary. Only decimal values can be negative, and binary allows the use of `.` in place of `0` to make it easier to visualize sprites.
 
 ```
-    LD   VC, 10   ; VC = 10
-    ADD  V3, #FE  ; V3 = V3 - 2
-    
-    ; draw the ball sprite
-    LD   I, ball
-    DRW  V3, VC, 6
+    LD      V0, #FF
+    ADD     V0, -2
     
 .ball
-    BYTE $..1111..
-    BYTE $.1....1.
-    BYTE $1......1
-    BYTE $1......1
-    BYTE $.1....1.
-    BYTE $..1111..
+    BYTE    $..1111..
+    BYTE    $.1....1.
+    BYTE    $1......1
+    BYTE    $1......1
+    BYTE    $.1....1.
+    BYTE    $..1111..
 ```
 
-Text literals can be added with single or double quotes, but there is no escape character. Usually this is just to add text information to the final ROM and not for any game data.
+Text literals can be added with single or double quotes, but there is no escape character. Usually this is just to add text information to the final ROM.
 
 ```
-    BYTE "A little game made by ME!"
+    BYTE    "A little game made by ME!"
 ```
 
 ### Instruction Set
+
+While this information is readily available in a few other places, I'm adding it here so it isn't lost. There are also a few tid-bits here that I couldn't find anywhere else.
 
 Each instruction is 16-bit and written MSB first. Each instruction is broken down into nibbles, where the nibbles (when combined) mean the following:
 
@@ -146,24 +133,22 @@ Here is the CHIP-8 instructions. The Super CHIP-8 instructions follow after the 
 | FX15   | LD DT, VX     | DT = VX
 | FX18   | LD ST, VX     | ST = VX
 | ANNN   | LD I, NNN     | I = NNN
-| FX29   | LD F, VX      | I = address of 4x5 font character in VX (0..F)
-| FX33   | LD B, VX      | Store BCD representation of VX at I (100), I+1 (10), and I+2 (1)
-| FX55   | LD [I], VX    | Store V0..VX (inclusive) to memory starting at I
-| FX65   | LD VX, [I]    | Load V0..VX (inclusive) from memory starting at I
+| FX29   | LD F, VX      | I = address of 4x5 font character in VX (0..F) (* see note)
+| FX33   | LD B, VX      | Store BCD representation of VX at I (100), I+1 (10), and I+2 (1); I remains unchanged
+| FX55   | LD [I], VX    | Store V0..VX (inclusive) to memory starting at I; I remains unchanged
+| FX65   | LD VX, [I]    | Load V0..VX (inclusive) from memory starting at I; I remains unchanged
 | FX1E   | ADD I, VX     | I = I + VX; VF = if I > 0xFFF then 1 else 0
 | 7XNN   | ADD VX, NN    | VX = VX + NN
 | 8XY4   | ADD VX, VY    | VX = VX + VY; VF = if carry then 1 else 0
-| 8XY5   | SUB VX, VY    | VX = VX - VY; VF = if borrow then 0 else 1
-| 8XY7   | SUBN VX, VY   | VX = VY - VX; VF = if borrow then 0 else 1
+| 8XY5   | SUB VX, VY    | VX = VX - VY; VF = if not borrow then 1 else 0
+| 8XY7   | SUBN VX, VY   | VX = VY - VX; VF = if not borrow then 1 else 0
 | 8XY1   | OR VX, VY     | VX = VX OR VY
 | 8XY2   | AND VX, VY    | VX = VX AND VY
 | 8XY3   | XOR VX, VY    | VX = VX XOR VY
-| 8XY6   | SHR VX        | VF = LSB(VX); VX = VX >> 1 (* see note)
-| 8XYE   | SHL VX        | VF = MSB(VX); VX = VX << 1 (* see note)
+| 8XY6   | SHR VX        | VF = LSB(VX); VX = VX >> 1 (** see note)
+| 8XYE   | SHL VX        | VF = MSB(VX); VX = VX << 1 (** see note)
 | CXNN   | RND VX, NN    | VX = RND() AND NN
 | DXYN   | DRW VX, VY, N | Draw 8xN sprite at I to VX, VY; VF = if collision then 1 else 0
-
-_(\*): So, in the original CHIP-8, the shift opcodes were actually intended to be `VX = VY shift 1`. But somewhere along the way this was dropped and shortened to just be `VX = VX shift 1`. No ROMS or emulators I could find implemented the original CHIP-8 shift instructions, and so neither does this one. However, the assembler will always write out a correct instruction so that any future emulators can implement the shift either way and it will work._
 
 And here are the instructions added for the Super CHIP-8 (a.k.a. CHIP-48):
 
@@ -176,14 +161,18 @@ And here are the instructions added for the Super CHIP-8 (a.k.a. CHIP-48):
 | 00FD   | EXIT          | Exit the interpreter; this causes the VM to infinite loop
 | 00FE   | LOW           | Enter low resolution (64x32) mode; this is the default mode
 | 00FF   | HIGH          | Enter high resolution (128x64) mode
-| DXY0   | DRW VX, VY, 0 | Draw a 16x16 sprite at I to VX, VY (8x16 in low res mode) (* see note)
-| FX30   | LD HF, VX     | I = address of 8x10 font character in VX (0..F)
+| DXY0   | DRW VX, VY, 0 | Draw a 16x16 sprite at I to VX, VY (8x16 in low res mode) (*** see note)
+| FX30   | LD HF, VX     | I = address of 8x10 font character in VX (0..F) (* see note)
 | FX75   | LD R, VX      | Store V0..VX (inclusive) into HP-RPL user flags (X < 8)
 | FX85   | LD VX, R      | Load V0..VX (inclusive) from HP-RPL user flags (X < 8)
 
 Nothing special needs to be done to use the Super CHIP-8 instructions. They are just noted separately for anyone wishing to hack the code, so they are aware that they are not part of the original CHIP-8 virtual machine.
 
-_(\*): When implementing 16x16 sprite drawing, note that the sprites are drawn row major. The frist two bytes make up the first row, the next two bytes the second row, etc._
+_(\*): This is implementation-dependent. Originally the CDP1802 CHIP-8 interpreter kept this memory somewhere else, but most emulators (including this one) put these sprites in the first 512 bytes of the program._
+
+_(\*\*): So, in the original CHIP-8, the shift opcodes were actually intended to be `VX = VY shift 1`. But somewhere along the way this was dropped and shortened to just be `VX = VX shift 1`. No ROMS or emulators I could find implemented the original CHIP-8 shift instructions, and so neither does this one. However, the assembler will always write out a correct instruction so that any future emulators can implement the shift either way and it will work._
+
+_(\*\*\*): When implementing 16x16 sprite drawing, note that the sprites are drawn row major. The frist two bytes make up the first row, the next two bytes the second row, etc._
 
 ### Directives
 
@@ -194,33 +183,43 @@ The assembler understands - beyond instructions - the following directives:
 | `DECLARE ID AS ..` | Declare an identifier that maps to a register, literal, or label. Must be declared before being used.
 | `BREAK ..`         | Create a breakpoint. No instruction is written, but the emulator will break before the next instruction is executed.
 | `ASSERT ..`        | Create a conditional breakpoint. The emulator will only break if `VF` is non-zero when the assert is hit. 
-| `KEYMAP K TO ..`   | Redefine the virtual key `K` to a key on the keyboard.
+| `KEYMAP K TO ..`   | Redefine the virtual key `K` to another key on the keyboard.
 | `BYTE ..`          | Write bytes to the ROM. This can take bytes literals or text strings.
-| `WORD ..`          | Write 2-byte words to the ROM in big-endian (MSB first) byte order.
+| `WORD ..`          | Write 2-byte words to the ROM in MSB first byte order.
 | `ALIGN BOUNDARY`   | Align the ROM to a power of 2 byte boundary.
 | `RESERVE N`        | Write N zero-bytes to the ROM.
 
-### CHIP-8 Tips & Tricks
+## Debugging
+
+If `-b` is passed as a command line flag, then the CHIP-8 emulator will start with a breakpoint at the first address executed. This behavior can also be accomplished by rebooting the CHIP-8 emulator (by pressing `BACK`) while holding the `CTRL` key.
+
+While the program is running, pressing `F5` or `SPACE` will pause emulation and break into the debugger. You should see the disassembled code with the current instruction highlighted red.
+
+Once in the debugger, pressing `F6` will single-step the current instruction and `F7` will step "over" it (this is useful when on a `CALL` instruction and you'd rather just skip the call and break again once you've returned back). Press `F8` to dump the memory near the `I` register. `F9` will toggle a breakpoint on the current instruction.
+
+When you've gotten whatever information you need, press `F5` again to continue execution.
+
+If you are debugging your own C8 assembler program, don't forget about the `BREAK` and `ASSERT` directives.
+
+_NOTE: the `DT` and `ST` registers still count down even while emulation is paused/broken. This is so the sound tone isn't constantly on while debugging and a delay would take a long time to reach zero if single stepping._
+
+## CHIP-8 Tips & Tricks
 
 Assembly language - if you're not used to it - can be a bit daunting at first. Here's some tips to keep in mind (for CHIP-8 and assembly programming in general) that can help you along the way...
 
-* If you want to subtract a constant value from a register, remember it's easier to just add the [two's complement](https://en.wikipedia.org/wiki/Two%27s_complement) instead.
+* If you want to subtract a constant value from a register, remember it's easier to just add a negative value instead.
 
-* Want to compare greater than? Use `SUB` and `SUBN`. Remember `VF` is 1 if there is **not** a borrow (read: the result is >= 0). Use `SUBN` when you want to compare, but not store the result in what you're comparing.
+* Want to compare greater or less than? Use `SUB` and `SUBN`. Remember `VF` is 1 if there is **not** a borrow (read: the result is >= 0). Use `SUBN` when you want to compare, but not store the result in what you're comparing.
 
-* Need a switch statement? Use `SE` and `SNE` followed by `JP` instructions to build a jump table.
-
-* Use a `JP V0, label` instead of `SE` switches. This isn't always possible, but better when it is.
+* Need a switch statement? Use `SE` and `SNE` followed by `JP` instructions to build a jump table. Use a `JP V0, address` instead when possible.
 
 * Perform [tail calls](https://en.wikipedia.org/wiki/Tail_call) whenever possible. If you see a `CALL` followed by a `RET`, just change the `CALL` to a `JP` and get rid of the `RET`.
 
 * Need a random point on the screen? `RND VX, #3F` for X and `RND VY, #1F` for Y. Use `#7F` and `#3F` if in high res mode.
 
-* When setting up global use of registers, leave `V0`-`V2` always free as scratch. They are incredibly useful for loading from `LD V2, [I]`, especially after performing a BCD conversion.
+* When setting up global use of registers, leave `V0`-`V2` always free as scratch. Most memory reads/writes use them, especially after performing a `LD` to BCD.
 
-* Have some tips? Email them and I'll be sure to add them... Once there's enough, it might be useful to make a whole page just about that!
-
-### Examples
+## Example CHIP-8 Programs
 
 There are a few example programs in `games/sources` for you you play around with, modify, and learn from.
 
