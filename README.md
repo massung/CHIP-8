@@ -20,18 +20,19 @@ Once the program is running, press `F1` at any time to see the list of key comma
 
 | Emulation         | Description
 |:------------------|:-----------------
-| `Backspace`       | Reset the emulator
-| `Space`           | Pause/break emulation
+| `Back`            | Reset the emulator
+| `Ctrl`+`Back`     | Reset and pause
 | `[`               | Decrease emulation speed
 | `]`               | Increase emulation speed
 
 | Images            | Description
 |:------------------|:-----------------
-| `F5`..`F8`        | Save image to slot (1-4)
-| `Ctrl`+`F5`..`F8` | Load image from slot (1-4)
+| `F1`..`F4`        | Save image to slot (1-4)
+| `Ctrl`+`F1`..`F4` | Load image from slot (1-4)
 
 | Debugging         | Description
 |:------------------|:-----------------
+| `F5`              | Pause/break emulation
 | `F9`              | Toggle breakpoint
 | `F10`             | Single step
 | `F11`             | Dump memory at `I` register
@@ -56,7 +57,7 @@ Games that you make can override specific keys in the assembler using `KEYMAP` d
 
 ### Saved ROM Images
 
-All disk images (`F5..F8`) are saved in `~/CHIP-8/IMG_F<5..8>`. They are a perfect snapshot of the CHIP-8 virtual machine.
+All disk images (`F1..F4`) are saved in `~/CHIP-8/SAVED_IMAGE_<1..4>`. They are a perfect snapshot of the CHIP-8 virtual machine.
  
 ### Debugging
 
@@ -89,7 +90,7 @@ There is a single, 16-bit address register: `I`, which is used for reading from 
 Last, there are two 8-bit timer registers (`DT` for delays and `ST` for sounds) that continuously count down at 60 Hz. The delay timer is good for time limiting your game and as long as the sound timer is non-zero a tone will be emitted.
 
 There are two literal types understood by the assembler: numbers and text strings. The bases for numbers accepted are 10, 16 (`#FF`), and 2 (`$10`). Base 2 (binary) is a little special in that - since it is often used for creating sprite data - a `.` can be used instead of `0`. For example:
-  
+
 ```
     LD   VC, 10   ; VC = 10
     ADD  V3, #FE  ; V3 = V3 - 2
@@ -114,6 +115,16 @@ Text literals can be added with single or double quotes, but there is no escape 
 ```
 
 ### Instruction Set
+
+Each instruction is 16-bit and written MSB first. Each instruction is broken down into nibbles, where the nibbles (when combined) mean the following:
+
+| Operand | Description
+|:--------|:-----------
+| X       | Virtual register (V0-VF)
+| Y       | Virtual register (V0-VF)
+| N       | 4-bit nibble literal
+| NN      | 8-bit byte literal
+| NNN     | 12-bit literal address (typically a label)
 
 Here is the CHIP-8 instructions. The Super CHIP-8 instructions follow after the basic instruction set.
 
@@ -150,10 +161,12 @@ Here is the CHIP-8 instructions. The Super CHIP-8 instructions follow after the 
 | 8XY1   | OR VX, VY     | VX = VX OR VY
 | 8XY2   | AND VX, VY    | VX = VX AND VY
 | 8XY3   | XOR VX, VY    | VX = VX XOR VY
-| 8XY6   | SHR VX        | VF = LSB(VX); VX = VX >> 1
-| 8XYE   | SHL VX        | VF = MSB(VX); VX = VX << 1
+| 8XY6   | SHR VX        | VF = LSB(VX); VX = VX >> 1 (* see note)
+| 8XYE   | SHL VX        | VF = MSB(VX); VX = VX << 1 (* see note)
 | CXNN   | RND VX, NN    | VX = RND() AND NN
 | DXYN   | DRW VX, VY, N | Draw 8xN sprite at I to VX, VY; VF = if collision then 1 else 0
+
+_(\*): So, in the original CHIP-8, the shift opcodes were actually intended to be `VX = VY shift 1`. But somewhere along the way this was dropped and shortened to just be `VX = VX shift 1`. No ROMS or emulators I could find implemented the original CHIP-8 shift instructions, and so neither does this one. However, the assembler will always write out a correct instruction so that any future emulators can implement the shift either way and it will work._
 
 And here are the instructions added for the Super CHIP-8 (a.k.a. CHIP-48):
 
@@ -166,12 +179,14 @@ And here are the instructions added for the Super CHIP-8 (a.k.a. CHIP-48):
 | 00FD   | EXIT          | Exit the interpreter; this causes the VM to infinite loop
 | 00FE   | LOW           | Enter low resolution (64x32) mode; this is the default mode
 | 00FF   | HIGH          | Enter high resolution (128x64) mode
-| DXY0   | DRW VX, VY, 0 | Draw a 16x16 sprite at I to VX, VY (8x16 in low res mode)
+| DXY0   | DRW VX, VY, 0 | Draw a 16x16 sprite at I to VX, VY (8x16 in low res mode) (* see note)
 | FX30   | LD HF, VX     | I = address of 8x10 font character in VX (0..F)
 | FX75   | LD R, VX      | Store V0..VX (inclusive) into HP-RPL user flags (X < 8)
 | FX85   | LD VX, R      | Load V0..VX (inclusive) from HP-RPL user flags (X < 8)
 
-_NOTE: Nothing special needs to be done to use the Super CHIP-8 instructions. They are just noted separately for anyone wishing to hack the code, so they are aware that they are not part of the original CHIP-8 virtual machine._
+Nothing special needs to be done to use the Super CHIP-8 instructions. They are just noted separately for anyone wishing to hack the code, so they are aware that they are not part of the original CHIP-8 virtual machine.
+
+_(\*): When implementing 16x16 sprite drawing, note that the sprites are drawn row major. The frist two bytes make up the first row, the next two bytes the second row, etc._
 
 ### Directives
 
