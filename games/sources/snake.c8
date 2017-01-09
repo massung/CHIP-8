@@ -98,7 +98,7 @@
 .do_move
 
     ; move up
-    add         head_y, #ff ; -1
+    add         head_y, -1
     ret
 
     ; move right
@@ -110,7 +110,7 @@
     ret
 
     ; move left
-    add         head_x, #ff ; -1
+    add         head_x, -1
     ret
 
 .write_head
@@ -177,7 +177,7 @@
     ; catches up.
 
     ; Pre-decrement tail by 2 positions.
-    add         tail, #fc ; -4
+    add         tail, -4
 
     ; Offset to the tail in memory.
     ld          i, snake_tail

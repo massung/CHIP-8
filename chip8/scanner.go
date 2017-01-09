@@ -91,6 +91,8 @@ func (s *tokenScanner) scanToken() token {
 		return s.scanHexLit()
 	case c == '$' && s.pos > 0:
 		return s.scanBinLit()
+	case c == '-' && s.pos > 0:
+		return s.scanDecLit()
 	case c >= '0' && c <= '9' && s.pos > 0:
 		return s.scanDecLit()
 	case c >= 'A' && c <= 'Z' && s.pos > 0:
@@ -304,6 +306,11 @@ func (s *tokenScanner) scanIndirection() token {
 func (s *tokenScanner) scanDecLit() token {
 	i := s.pos
 
+	// skip a unary minus negation
+	if s.bytes[i] == '-' {
+		s.pos += 1
+	}
+
 	// find the first non-numeric character
 	for ;s.pos < len(s.bytes);s.pos += 1 {
 		if strings.IndexByte("0123456789", s.bytes[s.pos]) < 0 {
@@ -311,7 +318,7 @@ func (s *tokenScanner) scanDecLit() token {
 		}
 	}
 
-	// convert the hex value to an unsigned number
+	// convert the hex value to a signed number
 	if n, err := strconv.ParseInt(string(s.bytes[i:s.pos]), 10, 32); err == nil {
 		return token{typ: TOKEN_LIT, val: int(n)}
 	}
