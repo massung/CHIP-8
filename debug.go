@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	/// Current debug window address.
+	/// Current debug window address for disassembly.
 	///
 	Address uint
 
@@ -132,7 +132,7 @@ func DebugRegisters(x, y int) {
 	}
 }
 
-/// Show a memory dump at I. Useful for sprite debugging.
+/// Show a memory dump at I.
 ///
 func DebugMemory() {
 	Logln("Memory dump near I...")
@@ -141,11 +141,11 @@ func DebugMemory() {
 	a := int(VM.I) & 0xFFF0
 
 	// 12 bytes will be written here
-	s := make([]string, 13)
+	s := make([]string, 20)
 
-	// show 8 lines of 12 bytes each
-	for line := 0; line < 8; line++ {
-		n := a+line*12
+	// show 6 lines of 12 bytes each
+	for line := 0; line < 6; line++ {
+		n := a + line*12
 
 		// memory address
 		s[0] = fmt.Sprintf(" %04X -", n)
@@ -173,8 +173,8 @@ func DebugLog(x, y int) {
 
 	// display the log
 	for i := 0;i < 16 && line < len(LogBuf);i++ {
-		if len(LogBuf[line]) >= 52 {
-			DrawText(LogBuf[line][:49] + "...", x, y)
+		if len(LogBuf[line]) >= 54 {
+			DrawText(LogBuf[line][:52] + "...", x, y)
 		} else {
 			DrawText(LogBuf[line], x, y)
 		}

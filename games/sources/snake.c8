@@ -7,20 +7,20 @@
 ;
 
 ; Let's declare some variables in lieu of registers.
-head_x      var v4
-head_y      var v5
-score       var v6
-direction   var v7
-head        var va
-tail        var vb
-food_x      var v8
-food_y      var v9
+head_x      var         v4
+head_y      var         v5
+score       var         v6
+direction   var         v7
+head        var         va
+tail        var         vb
+food_x      var         v8
+food_y      var         v9
 
 ; And declare some constants values.
-up          equ 0
-right       equ 4
-down        equ 8
-left        equ 12
+up          equ         0
+right       equ         4
+down        equ         8
+left        equ         12
 
             ; The snake has an initial length of 2 (4=x,y,x,y). Read
             ; comment at end of the program to understand why 8 and
@@ -153,21 +153,23 @@ draw_head
             ; don't want to erase anything on the screen, so pre-decrement
             ; the tail offset and then write 2 dummy positions. This way
             ; two new head positions will be written before the tail
-            ; catches up.
+            ; catches up. We have to do this two times in case we wrap
+            ; a byte boundary.
 
-            ; Pre-decrement tail by 2 positions.
-            add         tail, -4
+            ld          v0, #ff  ; dummy x
+            ld          v1, #ff  ; dummy y
 
-            ; Offset to the tail in memory.
+            ; Write a dummy position.
+            add         tail, -2
             ld          i, snake_tail
             add         i, tail
+            ld          [i], v1
 
-            ; Write -1,-1,-1,-1 to memory.
-            ld          v0, #ff
-            ld          v1, #ff
-            ld          v2, #ff
-            ld          v3, #ff
-            ld          [i], v3
+            ; And do it again.
+            add         tail, -2
+            ld          i, snake_tail
+            add         i, tail
+            ld          [i], v1
 
             ; Now redraw the head (since it was turned off).
             ld          i, dot

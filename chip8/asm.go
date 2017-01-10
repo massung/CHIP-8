@@ -179,10 +179,13 @@ func (a *Assembly) assembleLabel(label string, s *tokenScanner) token {
 /// Create a new breakpoint at the current Address.
 ///
 func (a *Assembly) assembleBreakpoint(s *tokenScanner, conditional bool) {
+	reason := s.scanToEnd().val.(string)
+
+	// create the breakpoint
 	a.Breakpoints = append(a.Breakpoints, Breakpoint{
 		Address: len(a.ROM),
 		Conditional: conditional,
-		Reason: s.scanToEnd().val.(string),
+		Reason: reason,
 	})
 }
 

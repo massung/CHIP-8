@@ -181,13 +181,13 @@ The assembler understands - beyond instructions - the following directives:
 | Directive    | Description
 |:-------------|:-------------------
 | `EQU`        | Declare the label to equal a literal constant instead of the current address. Must be declared before being used.
-| `VAR`        | Declare the label to represent a specific register instead of the current address. Must be declared before being used.
-| `BREAK`      | Create a breakpoint. No instruction is written, but the emulator will break before the next instruction is executed.
-| `ASSERT`     | Create a conditional breakpoint. The emulator will only break if `VF` is non-zero when the assert is hit. 
+| `VAR`        | Declare the label to represent a general purpose, V-register instead of the current address. Must be declared before being used.
+| `BREAK`      | Create a breakpoint. No instruction is written, but the emulator will break before the next instruction is executed. All text after the directive will be output to the log.
+| `ASSERT`     | Create a conditional breakpoint. The emulator will only break if `VF` is non-zero when the assert is hit. All text after the directive will be output to the log.
 | `BYTE`       | Write bytes to the ROM. This can take bytes literals or text strings.
 | `WORD`       | Write 2-byte words to the ROM in MSB first byte order.
 | `ALIGN`      | Align the ROM to a power of 2 byte boundary.
-| `PAD N`      | Write N zero-bytes to the ROM.
+| `PAD`        | Write "zero" bytes to the ROM. Easier than using `BYTE` and typing out a bunch of `0`'s.
 
 ## Debugging
 

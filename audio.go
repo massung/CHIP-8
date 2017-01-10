@@ -4,10 +4,11 @@ package main
 // void Tone(void *data, byte *stream, int len);
 import "C"
 import (
-	"github.com/veandco/go-sdl2/sdl"
-	"unsafe"
 	"reflect"
 	"time"
+	"unsafe"
+
+	"github.com/veandco/go-sdl2/sdl"
 )
 
 var (

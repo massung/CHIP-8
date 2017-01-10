@@ -9,14 +9,14 @@ import (
 	"time"
 
 	"github.com/massung/chip-8/chip8"
-	"github.com/veandco/go-sdl2/sdl"
 	"github.com/sqweek/dialog"
+	"github.com/veandco/go-sdl2/sdl"
 )
 
 var (
 	/// True if the ROM should load paused.
 	///
-	Break bool
+	BreakOnLoad bool
 
 	/// True if pausing emulation (single stepping).
 	///
@@ -43,7 +43,7 @@ func main() {
 	rand.Seed(time.Now().UTC().UnixNano())
 
 	// parse the command line
-	flag.BoolVar(&Break, "b", false, "Start ROM paused.")
+	flag.BoolVar(&BreakOnLoad, "b", false, "Start ROM paused.")
 	flag.Parse()
 
 	// get the file name of the ROM to load
@@ -83,9 +83,6 @@ func main() {
 	InitScreen()
 	InitAudio()
 	InitFont()
-
-	// initially break into debugger?
-	Paused = Break
 
 	// set processor speed and refresh rate
 	clock := time.NewTicker(time.Millisecond * 2)
@@ -151,6 +148,12 @@ func Load(file string) {
 			VM, _ = chip8.LoadFile(file)
 		}
 	}
+
+	// pause if the -b flag was passed
+	Paused = BreakOnLoad
+
+	// clear flag so it doesn't happen on reset
+	BreakOnLoad = false
 }
 
 func Refresh() {
