@@ -34,8 +34,7 @@ const (
 	TOKEN_TEXT
 	TOKEN_BREAK
 	TOKEN_ASSERT
-	TOKEN_DECLARE
-	TOKEN_AS
+	TOKEN_EQU
 )
 
 /// A parsed, lexical token.
@@ -262,27 +261,11 @@ func (s *tokenScanner) scanIdentifier() token {
 		return token{typ: TOKEN_BREAK}
 	case "ASSERT":
 		return token{typ: TOKEN_ASSERT}
-	case "DECLARE":
-		return token{typ: TOKEN_DECLARE}
-	case "AS":
-		return s.scanAs()
+	case "EQU":
+		return token{typ: TOKEN_EQU}
 	}
 
 	return token{typ: TOKEN_REF, val: id}
-}
-
-/// Scan an AS token.
-///
-func (s *tokenScanner) scanAs() token {
-	t := s.scanToken()
-
-	switch t.typ {
-	case TOKEN_LIT, TOKEN_REF, TOKEN_V, TOKEN_R, TOKEN_I, TOKEN_B, TOKEN_F, TOKEN_HF, TOKEN_K, TOKEN_DT, TOKEN_ST:
-		return token{typ: TOKEN_AS, val: t}
-	}
-
-	// only literals, references, and registers can be declared
-	panic("illegal declare .. as")
 }
 
 /// Scan an indirect address of.

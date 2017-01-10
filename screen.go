@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -72,9 +70,3 @@ func CopyScreen(x, y, w, h int32) {
 	Renderer.Copy(Screen, &src, &sdl.Rect{X: x, Y: y, W: w, H: h})
 }
 
-/// SaveScreen writes a BMP to disk of the current screen.
-///
-func SaveScreen() {
-	fmt.Println("\nScreen saved to SCREENSHOT.BMP")
-	// TODO:
-}

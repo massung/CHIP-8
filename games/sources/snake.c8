@@ -7,20 +7,20 @@
 ;
 
     ; Let's declare some variables in lieu of registers.
-    declare     head_x as v4
-    declare     head_y as v5
-    declare     score as v6
-    declare     direction as v7
-    declare     head as va
-    declare     tail as vb
-    declare     food_x as v8
-    declare     food_y as v9
+    head_x      equ v4
+    head_y      equ v5
+    score       equ v6
+    direction   equ v7
+    head        equ va
+    tail        equ vb
+    food_x      equ v8
+    food_y      equ v9
 
     ; And declare some constants values.
-    declare     up as 0
-    declare     right as 4
-    declare     down as 8
-    declare     left as 12
+    up          equ 0
+    right       equ 4
+    down        equ 8
+    left        equ 12
 
 ; Since our snake can get pretty long, we need to define a
 ; place in memory to store it. That will be done at the end

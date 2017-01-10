@@ -45,8 +45,6 @@ The original CHIP-8 had 16 virtual keys had the layout on the left, which has be
  A 0 B F                                   Z X C V
 ```
 
-Games that you make can override specific keys in the assembler using `KEYMAP` directives. But, beyond that, this is the layout for any ROMs you play.
-
 ## The Assembler
 
 While playing the games that exist for the CHIP-8 might be fun for a while, the real fun is in creating your own games and seeing just how creative you can be with such a limited machine!
@@ -182,10 +180,9 @@ The assembler understands - beyond instructions - the following directives:
 
 | Directive          | Description
 |:-------------------|:-------------------
-| `DECLARE ID AS ..` | Declare an identifier that maps to a register, literal, or label. Must be declared before being used.
+| `ID EQU ..`        | Declare an identifier that to equal a literal constant, register, or label. Must be declared before being used.
 | `BREAK ..`         | Create a breakpoint. No instruction is written, but the emulator will break before the next instruction is executed.
 | `ASSERT ..`        | Create a conditional breakpoint. The emulator will only break if `VF` is non-zero when the assert is hit. 
-| `KEYMAP K TO ..`   | Redefine the virtual key `K` to another key on the keyboard.
 | `BYTE ..`          | Write bytes to the ROM. This can take bytes literals or text strings.
 | `WORD ..`          | Write 2-byte words to the ROM in MSB first byte order.
 | `ALIGN BOUNDARY`   | Align the ROM to a power of 2 byte boundary.

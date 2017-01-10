@@ -134,8 +134,8 @@ func (a *Assembly) assemble(s *tokenScanner) {
 		a.assembleBreakpoint(s, false)
 	case t.typ == TOKEN_ASSERT:
 		a.assembleBreakpoint(s, true)
-	case t.typ == TOKEN_DECLARE:
-		a.assembleDeclare(s)
+	case t.typ == TOKEN_REF:
+		a.assembleDeclare(t.val.(string), s)
 	case t.typ != TOKEN_END:
 		panic("unexpected token")
 	}
@@ -164,30 +164,28 @@ func (a *Assembly) assembleBreakpoint(s *tokenScanner, conditional bool) {
 	})
 }
 
-/// Create a new declaration identifier.
+/// Create a new EQU identifier.
 ///
-func (a *Assembly) assembleDeclare(s *tokenScanner) {
-	if t := s.scanToken(); t.typ == TOKEN_REF {
-		id := t.val.(string)
+func (a *Assembly) assembleDeclare(id string, s *tokenScanner) {
+	if _, exists := a.Declares[id]; exists {
+		panic("declaration already exists")
+	}
+	if _, exists := a.Labels[id]; exists {
+		panic("declaration already exists as label")
+	}
 
-		// make sure it doesn't already exist
-		if _, exists := a.Declares[id]; exists {
-			panic("duplicate declare .. as")
-		}
-		if _, exists := a.Labels[id]; exists {
-			panic("declare exists as label")
-		}
-
-		// scan what to be declared as
-		if as := s.scanToken(); as.typ == TOKEN_AS {
-			a.Declares[id] = as.val.(token)
+	// scan for EQU <value>
+	if t := s.scanToken(); t.typ == TOKEN_EQU {
+		switch equ := s.scanToken(); equ.typ {
+		case TOKEN_LIT, TOKEN_LABEL, TOKEN_V, TOKEN_I, TOKEN_F, TOKEN_HF, TOKEN_B, TOKEN_R:
+			a.Declares[id] = equ
 
 			// successfully declared
 			return
 		}
 	}
 
-	panic("illegal declare .. as")
+	panic("illegal declaration")
 }
 
 /// Compile a single instruction into the assembly.
