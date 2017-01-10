@@ -17,14 +17,14 @@ const (
 	TOKEN_END tokenType = iota
 	TOKEN_CHAR
 	TOKEN_LABEL
-	TOKEN_REF
+	TOKEN_ID
 	TOKEN_INSTRUCTION
-	TOKEN_ADDRESS
 	TOKEN_OPERAND
 	TOKEN_V
 	TOKEN_R
 	TOKEN_B
 	TOKEN_I
+	TOKEN_INDIRECT_I
 	TOKEN_F
 	TOKEN_HF
 	TOKEN_K
@@ -35,6 +35,8 @@ const (
 	TOKEN_BREAK
 	TOKEN_ASSERT
 	TOKEN_EQU
+	TOKEN_VAR
+	TOKEN_HERE
 )
 
 /// A parsed, lexical token.
@@ -80,56 +82,25 @@ func (s *tokenScanner) scanToken() token {
 	switch {
 	case c == ';':
 		return s.scanToEnd()
-	case c == '.' && s.pos == 0:
-		return s.scanLabel()
-	case c == '[' && s.pos > 0:
-		return s.scanIndirection()
-	case c == ',' && s.pos > 0:
+	case c == '[':
+		return s.scanIndirect()
+	case c == ',':
 		return s.scanOperand()
-	case c == '#' && s.pos > 0:
+	case c == '#':
 		return s.scanHexLit()
-	case c == '$' && s.pos > 0:
+	case c == '%':
 		return s.scanBinLit()
-	case c == '-' && s.pos > 0:
+	case c == '-':
 		return s.scanDecLit()
-	case c >= '0' && c <= '9' && s.pos > 0:
+	case c >= '0' && c <= '9':
 		return s.scanDecLit()
-	case c >= 'A' && c <= 'Z' && s.pos > 0:
+	case c >= 'A' && c <= 'Z':
 		return s.scanIdentifier()
-	case c == '"' || c == '\'' && s.pos > 0:
+	case c == '"' || c == '\'':
 		return s.scanString(c)
 	}
 
-	if s.pos == 0 {
-		panic("expected .label")
-	}
-
 	return s.scanChar()
-}
-
-/// Scan a list of comma-separated tokens.
-///
-func (s *tokenScanner) scanOperands() []token {
-	tokens := make([]token, 0, 3)
-
-	// is this the end of the operand list?
-	for t := s.scanToken(); t.typ != TOKEN_END; {
-		tokens = append(tokens, t)
-
-		// get another token, are we at the end?
-		if t = s.scanToken(); t.typ != TOKEN_OPERAND {
-			if t.typ == TOKEN_END {
-				break
-			}
-
-			panic("unexpected token")
-		}
-
-		// expand the operand
-		t = t.val.(token)
-	}
-
-	return tokens
 }
 
 /// Scan a single character.
@@ -140,7 +111,12 @@ func (s *tokenScanner) scanChar() token {
 	// advance the scan pos
 	s.pos += 1
 
-	// return a character token
+	// some characters are special tokens
+	switch s.bytes[i] {
+	case '*':
+		return token{typ: TOKEN_HERE}
+	}
+
 	return token{typ: TOKEN_CHAR, val: s.bytes[i]}
 }
 
@@ -172,19 +148,47 @@ func (s *tokenScanner) scanOperand() token {
 	return token{typ: TOKEN_OPERAND, val: t}
 }
 
-/// Scan a label, which is a specific type of identifier.
+/// Scan a list of comma-separated tokens.
 ///
-func (s *tokenScanner) scanLabel() token {
-	s.pos += 1
+func (s *tokenScanner) scanOperands() []token {
+	tokens := make([]token, 0, 3)
 
-	// advance and validate the first identifier character
-	if s.pos < len(s.bytes) && s.bytes[s.pos] >= 'A' && s.bytes[s.pos] <= 'Z' {
-		if id := s.scanIdentifier(); id.typ == TOKEN_REF {
-			return token{typ: TOKEN_LABEL, val: id.val}
+	// is this the end of the operand list?
+	for t := s.scanToken(); t.typ != TOKEN_END; {
+		tokens = append(tokens, t)
+
+		// get another token, are we at the end?
+		if t = s.scanToken(); t.typ != TOKEN_OPERAND {
+			if t.typ == TOKEN_END {
+				break
+			}
+
+			panic("unexpected token")
 		}
+
+		// expand the operand
+		t = t.val.(token)
 	}
 
-	panic("expected label")
+	return tokens
+}
+
+/// Scan an indirect address of.
+///
+func (s *tokenScanner) scanIndirect() token {
+	s.pos += 1
+
+	// scan the next token to take the indirect Address of
+	if t := s.scanToken(); t.typ != TOKEN_I {
+		panic("illegal indirection")
+	}
+
+	// terminate with closing bracket
+	if t := s.scanToken(); t.typ != TOKEN_CHAR || t.val.(byte) != ']' {
+		panic("illegal indirection")
+	}
+
+	return token{typ: TOKEN_INDIRECT_I}
 }
 
 /// Scan an identifier: instruction, register, or label reference.
@@ -255,7 +259,9 @@ func (s *tokenScanner) scanIdentifier() token {
 		return token{typ: TOKEN_DT}
 	case "S", "ST":
 		return token{typ: TOKEN_ST}
-	case "CLS", "RET", "EXIT", "LOW", "HIGH", "SCU", "SCD", "SCR", "SCL", "SYS", "JP", "CALL", "SE", "SNE", "SKP", "SKNP", "LD", "OR", "AND", "XOR", "ADD", "SUB", "SUBN", "SHR", "SHL", "RND", "DRW", "BYTE", "WORD", "ALIGN", "RESERVE":
+	case "CLS", "RET", "EXIT", "LOW", "HIGH", "SCU", "SCD", "SCR", "SCL", "SYS", "JP", "CALL", "SE", "SNE", "SKP", "SKNP", "LD", "OR", "AND", "XOR", "ADD", "SUB", "SUBN", "SHR", "SHL", "RND", "DRW":
+		return token{typ: TOKEN_INSTRUCTION, val: id}
+	case "BYTE", "WORD", "ALIGN", "PAD":
 		return token{typ: TOKEN_INSTRUCTION, val: id}
 	case "BREAK":
 		return token{typ: TOKEN_BREAK}
@@ -263,25 +269,15 @@ func (s *tokenScanner) scanIdentifier() token {
 		return token{typ: TOKEN_ASSERT}
 	case "EQU":
 		return token{typ: TOKEN_EQU}
+	case "VAR":
+		return token{typ: TOKEN_VAR}
 	}
 
-	return token{typ: TOKEN_REF, val: id}
-}
-
-/// Scan an indirect address of.
-///
-func (s *tokenScanner) scanIndirection() token {
-	s.pos += 1
-
-	// scan the next token to take the indirect Address of
-	t := s.scanToken()
-
-	// the next token should close the indirection
-	if c := s.scanToken(); c.typ != TOKEN_CHAR || c.val.(byte) != ']' {
-		panic("illegal indirection")
+	if i == 0 {
+		return token{typ: TOKEN_LABEL, val: id}
+	} else {
+		return token{typ: TOKEN_ID, val: id}
 	}
-
-	return token{typ: TOKEN_ADDRESS, val: t}
 }
 
 /// Scan a decimal literal.

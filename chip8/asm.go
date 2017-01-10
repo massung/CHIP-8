@@ -18,13 +18,9 @@ type Assembly struct {
 	///
 	Breakpoints []Breakpoint
 
-	/// Labels to addresses mapping.
+	/// Label mapping.
 	///
-	Labels map[string]int
-
-	/// Declares text substitution macros.
-	///
-	Declares map[string]token
+	Labels map[string]token
 
 	/// Addresses with unresolved labels.
 	///
@@ -40,8 +36,7 @@ func Assemble(file string) (out *Assembly, err error) {
 	out = &Assembly{
 		ROM: make([]byte, 0x200, 0x1000),
 		Breakpoints: make([]Breakpoint, 0, 10),
-		Labels: make(map[string]int),
-		Declares: make(map[string]token),
+		Labels: make(map[string]token),
 		Unresolved: make(map[int]string),
 	}
 
@@ -77,11 +72,15 @@ func Assemble(file string) (out *Assembly, err error) {
 		out.assemble(&tokenScanner{bytes: scanner.Bytes()})
 	}
 
-	// resolve all labels
+	// resolve all label addresses
 	for address, label := range out.Unresolved {
-		if resolved, ok := out.Labels[label]; ok {
-			msb := byte(resolved>>8)
-			lsb := byte(resolved&0xFF)
+		if t, ok := out.Labels[label]; ok {
+			if t.typ != TOKEN_LIT {
+				panic("label does not resolve to address!")
+			}
+
+			msb := byte(t.val.(int)>>8)
+			lsb := byte(t.val.(int)&0xFF)
 
 			// note: This "just works" because all labels are guaranteed to be
 			//       addressed within 12-bits. There are only a handful of
@@ -125,33 +124,56 @@ func Assemble(file string) (out *Assembly, err error) {
 func (a *Assembly) assemble(s *tokenScanner) {
 	t := s.scanToken()
 
+	// assign labels
+	if t.typ == TOKEN_LABEL {
+		t = a.assembleLabel(t.val.(string), s)
+	}
+
+	// continue assembling
 	switch {
-	case t.typ == TOKEN_LABEL:
-		a.assembleLabel(t.val.(string))
 	case t.typ == TOKEN_INSTRUCTION:
 		a.assembleInstruction(t.val.(string), s)
 	case t.typ == TOKEN_BREAK:
 		a.assembleBreakpoint(s, false)
 	case t.typ == TOKEN_ASSERT:
 		a.assembleBreakpoint(s, true)
-	case t.typ == TOKEN_REF:
-		a.assembleDeclare(t.val.(string), s)
 	case t.typ != TOKEN_END:
 		panic("unexpected token")
 	}
+
 }
 
 /// Scan for a label and add it to the assembly.
 ///
-func (a *Assembly) assembleLabel(label string) {
-	if _, exists := a.Declares[label]; exists {
-		panic("label exists as declare")
-	}
+func (a *Assembly) assembleLabel(label string, s *tokenScanner) token {
 	if _, exists := a.Labels[label]; exists {
 		panic("duplicate label")
 	}
 
-	a.Labels[label] = len(a.ROM)
+	// by default, the label is assigned the current address
+	a.Labels[label] = token{typ: TOKEN_LIT, val: len(a.ROM)}
+
+	// scan the next token
+	t := s.scanToken()
+
+	// if EQU or VAR, reassign the label
+	if t.typ == TOKEN_EQU || t.typ == TOKEN_VAR {
+		v := s.scanToken()
+
+		// equ requires a literal, and var requires a v-register
+		if (t.typ == TOKEN_EQU && v.typ == TOKEN_LIT) || (t.typ == TOKEN_VAR && v.typ == TOKEN_V) {
+			a.Labels[label] = v
+
+			// should be the final token
+			if t = s.scanToken(); t.typ == TOKEN_END {
+				return t
+			}
+		}
+
+		panic("illegal label assignment")
+	}
+
+	return t
 }
 
 /// Create a new breakpoint at the current Address.
@@ -162,30 +184,6 @@ func (a *Assembly) assembleBreakpoint(s *tokenScanner, conditional bool) {
 		Conditional: conditional,
 		Reason: s.scanToEnd().val.(string),
 	})
-}
-
-/// Create a new EQU identifier.
-///
-func (a *Assembly) assembleDeclare(id string, s *tokenScanner) {
-	if _, exists := a.Declares[id]; exists {
-		panic("declaration already exists")
-	}
-	if _, exists := a.Labels[id]; exists {
-		panic("declaration already exists as label")
-	}
-
-	// scan for EQU <value>
-	if t := s.scanToken(); t.typ == TOKEN_EQU {
-		switch equ := s.scanToken(); equ.typ {
-		case TOKEN_LIT, TOKEN_LABEL, TOKEN_V, TOKEN_I, TOKEN_F, TOKEN_HF, TOKEN_B, TOKEN_R:
-			a.Declares[id] = equ
-
-			// successfully declared
-			return
-		}
-	}
-
-	panic("illegal declaration")
 }
 
 /// Compile a single instruction into the assembly.
@@ -254,31 +252,24 @@ func (a *Assembly) assembleInstruction(i string, s *tokenScanner) {
 		a.ROM = append(a.ROM, a.assembleWORD(tokens)...)
 	case "ALIGN":
 		a.ROM = append(a.ROM, a.assembleALIGN(tokens)...)
-	case "RESERVE":
-		a.ROM = append(a.ROM, a.assembleRESERVE(tokens)...)
+	case "PAD":
+		a.ROM = append(a.ROM, a.assemblePAD(tokens)...)
 	}
 }
 
-/// Assemble a single operand, expanding references.
+/// Assemble a single operand, expanding label references.
 ///
 func (a *Assembly) assembleOperand(t token) token {
-	if t.typ == TOKEN_REF {
-		if def, ok := a.Declares[t.val.(string)]; ok {
-			return a.assembleOperand(def)
+	if t.typ == TOKEN_ID {
+		label := t.val.(string)
+		if v, exists := a.Labels[label]; exists {
+			t = v
+		} else {
+			t = token{typ: TOKEN_LIT, val: 0x200}
+
+			// add an unresolved address
+			a.Unresolved[len(a.ROM)] = label
 		}
-	}
-
-	// Address labels
-	if t.typ == TOKEN_REF {
-		if address, ok := a.Labels[t.val.(string)]; ok {
-			return token{typ: TOKEN_LIT, val: address}
-		}
-
-		// add an unresolved label at this Address
-		a.Unresolved[len(a.ROM)] = t.val.(string)
-
-		// use a null label Address that's larger than a byte
-		return token{typ: TOKEN_LIT, val: 0x200}
 	}
 
 	return t
@@ -744,20 +735,16 @@ func (a *Assembly) assembleLD(tokens []token) []byte {
 		return []byte{0xF0|byte(x), 0x33}
 	}
 
-	if ops, ok := a.assembleOperands(tokens, TOKEN_ADDRESS, TOKEN_V); ok {
+	if ops, ok := a.assembleOperands(tokens, TOKEN_INDIRECT_I, TOKEN_V); ok {
 		x := ops[1].val.(int)
 
-		if ops[0].val.(token).typ == TOKEN_I {
-			return []byte{0xF0|byte(x), 0x55}
-		}
+		return []byte{0xF0|byte(x), 0x55}
 	}
 
-	if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_ADDRESS); ok {
+	if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_INDIRECT_I); ok {
 		x := ops[0].val.(int)
 
-		if ops[1].val.(token).typ == TOKEN_I {
-			return []byte{0xF0|byte(x), 0x65}
-		}
+		return []byte{0xF0|byte(x), 0x65}
 	}
 
 	if ops, ok := a.assembleOperands(tokens, TOKEN_R, TOKEN_V); ok {
@@ -843,9 +830,9 @@ func (a *Assembly) assembleALIGN(tokens []token) []byte {
 	panic("illegal alignment")
 }
 
-/// Assemble an RESERVE instruction
+/// Assemble an PAD instruction
 ///
-func (a *Assembly) assembleRESERVE(tokens []token) []byte {
+func (a *Assembly) assemblePAD(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_LIT); ok {
 		n := ops[0].val.(int)
 

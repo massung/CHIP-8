@@ -6,302 +6,281 @@
 ; Have fun!
 ;
 
-    ; Let's declare some variables in lieu of registers.
-    head_x      equ v4
-    head_y      equ v5
-    score       equ v6
-    direction   equ v7
-    head        equ va
-    tail        equ vb
-    food_x      equ v8
-    food_y      equ v9
-
-    ; And declare some constants values.
-    up          equ 0
-    right       equ 4
-    down        equ 8
-    left        equ 12
-
-; Since our snake can get pretty long, we need to define a
-; place in memory to store it. That will be done at the end
-; of the program (see .snake_tail). Each piece of the snake
-; will be 2-bytes: x and y. The head will be written to VA
-; (pre-incremented), while the tail will be read from VB
-; (post-incremented).
-;
-
-    ; The snake has an initial length of 2 (4=x,y,x,y). Read
-    ; comment at end of the program to understand why 8 and
-    ; 4 are used here.
-    ;
-    ld          head, 8
-    ld          tail, 4
-
-    ; No initial score. Movement to the right.
-    ld          score, 0
-    ld          direction, right
-
-    ; Load the initial snake tail and head into memory.
-    ld          i, snake_tail
-    add         i, tail
-    ld          head_y, [i]
-
-    ; Draw the initial snake.
-    ld          i, start_position
-    drw         v0, v1, 1
-
-    ; Draw the initial score and spawn food.
-    call        draw_score
-    call        spawn_food
-
-.loop
-    call        user_input
-    call        move
-    call        check_bounds
-    call        write_head
-    call        draw_head
-    call        erase_tail
-
-    ; Loop forever until the game is done.
-    jp          loop
-
-.user_input
-
-    ; Is the UP key (W) pressed?
-    ld          v0, 5
-    sknp        v0
-    ld          direction, up
-
-    ; Is the LEFT key (A) pressed?
-    ld          v0, 7
-    sknp        v0
-    ld          direction, left
-
-    ; Is the DOWN key (S) pressed?
-    ld          v0, 8
-    sknp        v0
-    ld          direction, down
-
-    ; Is the RIGHT key (D) pressed?
-    ld          v0, 9
-    sknp        v0
-    ld          direction, right
-    ret
-
-.move
-
-    ; Use a jump table to perform the move.
-
-    ld          v0, direction
-    jp          v0, do_move
-
-.do_move
-
-    ; move up
-    add         head_y, -1
-    ret
-
-    ; move right
-    add         head_x, 1
-    ret
-
-    ; move down
-    add         head_y, 1
-    ret
-
-    ; move left
-    add         head_x, -1
-    ret
-
-.write_head
+; Let's declare some variables in lieu of registers.
+head_x      var v4
+head_y      var v5
+score       var v6
+direction   var v7
+head        var va
+tail        var vb
+food_x      var v8
+food_y      var v9
+
+; And declare some constants values.
+up          equ 0
+right       equ 4
+down        equ 8
+left        equ 12
+
+            ; The snake has an initial length of 2 (4=x,y,x,y). Read
+            ; comment at end of the program to understand why 8 and
+            ; 4 are used here.
+            ;
+            ld          head, 8
+            ld          tail, 4
+
+            ; No initial score. Movement to the right.
+            ld          score, 0
+            ld          direction, right
+
+            ; Load the initial snake tail and head into memory.
+            ld          i, snake_tail
+            add         i, tail
+            ld          head_y, [i]
+
+            ; Draw the initial snake.
+            ld          i, start_position
+            drw         v0, v1, 1
+
+            ; Draw the initial score and spawn food.
+            call        draw_score
+            call        spawn_food
+
+            ; Enter the main game loop.
+loop        call        user_input
+            call        move
+            call        check_bounds
+            call        write_head
+            call        draw_head
+            call        erase_tail
+            jp          loop
+
+user_input
+
+            ; Is the UP key (W) pressed?
+            ld          v0, 5
+            sknp        v0
+            ld          direction, up
+
+            ; Is the LEFT key (A) pressed?
+            ld          v0, 7
+            sknp        v0
+            ld          direction, left
+
+            ; Is the DOWN key (S) pressed?
+            ld          v0, 8
+            sknp        v0
+            ld          direction, down
+
+            ; Is the RIGHT key (D) pressed?
+            ld          v0, 9
+            sknp        v0
+            ld          direction, right
+            ret
+
+            ; move based on value in direction register
+move        ld          v0, direction
+            jp          v0, move_table
+
+            ; each is a 4-byte offset from the other
+move_table  add         head_y, -1
+            ret
+            add         head_x, 1
+            ret
+            add         head_y, 1
+            ret
+            add         head_x, -1
+            ret
+
+write_head
+
+            ; Offset to the head address to write to.
+            ld          i, snake_tail
+
+            ; Pre-increment the head position.
+            add         head, 2
+            add         i, head
+
+            ; Write the head X,Y to [I].
+            ld          v0, head_x
+            ld          v1, head_y
+            ld          [i], v1
+            ret
+
+erase_tail
+
+            ; Offset to the tail address to read from.
+            ld          i, snake_tail
+            add         i, tail
+
+            ; Load the tail position into V0,V1.
+            ld          v1, [i]
+
+            ; Erase the dot that's already there.
+            ld          i, dot
+            drw         v0, v1, 1
+
+            ; Post-increment the tail address offset.
+            add         tail, 2
+            ret
+
+draw_head
 
-    ; Offset to the head address to write to.
-    ld          i, snake_tail
+            ; Draw the new head position.
+            ld          i, dot
+            drw         head_x, head_y, 1
 
-    ; Pre-increment the head position.
-    add         head, 2
-    add         i, head
+            ; If the head didn't collide with anything, return.
+            se          vf, 1
+            ret
 
-    ; Write the head X,Y to [I].
-    ld          v0, head_x
-    ld          v1, head_y
-    ld          [i], v1
-    ret
-
-.erase_tail
-
-    ; Offset to the tail address to read from.
-    ld          i, snake_tail
-    add         i, tail
-
-    ; Load the tail position into V0,V1.
-    ld          v1, [i]
-
-    ; Erase the dot that's already there.
-    ld          i, dot
-    drw         v0, v1, 1
-
-    ; Post-increment the tail address offset.
-    add         tail, 2
-    ret
-
-.draw_head
+            ; Check to see if the head hit the food. If not, game over.
+            se          head_x, food_x
+            jp          game_over
+            se          head_y, food_y
+            jp          game_over
 
-    ; Draw the new head position.
-    ld          i, dot
-    drw         head_x, head_y, 1
+            ; Play a little beep for eating food.
+            ld          v0, 2
+            ld          st, v0
 
-    ; If the head didn't collide with anything, return.
-    se          vf, 1
-    ret
+            ; Erase, increment, and redraw the score.
+            call        draw_score
+            add         score, 1
+            call        draw_score
 
-    ; Check to see if the head hit the food. If not, game over.
-    se          head_x, food_x
-    jp          game_over
-    se          head_y, food_y
-    jp          game_over
+            ; Grow the snake by 2. This is done by growing the tail. We
+            ; don't want to erase anything on the screen, so pre-decrement
+            ; the tail offset and then write 2 dummy positions. This way
+            ; two new head positions will be written before the tail
+            ; catches up.
 
-    ; Play a little beep for eating food.
-    ld          v0, 2
-    ld          st, v0
+            ; Pre-decrement tail by 2 positions.
+            add         tail, -4
 
-    ; Erase, increment, and redraw the score.
-    call        draw_score
-    add         score, 1
-    call        draw_score
+            ; Offset to the tail in memory.
+            ld          i, snake_tail
+            add         i, tail
 
-    ; Grow the snake by 2. This is done by growing the tail. We
-    ; don't want to erase anything on the screen, so pre-decrement
-    ; the tail offset and then write 2 dummy positions. This way
-    ; two new head positions will be written before the tail
-    ; catches up.
+            ; Write -1,-1,-1,-1 to memory.
+            ld          v0, #ff
+            ld          v1, #ff
+            ld          v2, #ff
+            ld          v3, #ff
+            ld          [i], v3
 
-    ; Pre-decrement tail by 2 positions.
-    add         tail, -4
+            ; Now redraw the head (since it was turned off).
+            ld          i, dot
+            drw         head_x, head_y, 1
 
-    ; Offset to the tail in memory.
-    ld          i, snake_tail
-    add         i, tail
+            ; Tail call to spawn another food pellet.
+            jp          spawn_food
 
-    ; Write -1,-1,-1,-1 to memory.
-    ld          v0, #ff
-    ld          v1, #ff
-    ld          v2, #ff
-    ld          v3, #ff
-    ld          [i], v3
+check_bounds
 
-    ; Now redraw the head (since it was turned off).
-    ld          i, dot
-    drw         head_x, head_y, 1
+            ; Is X == -1 or X == 64?
+            sne         head_x, #ff
+            jp          game_over
+            sne         head_x, 64
+            jp          game_over
 
-    ; Tail call to spawn another food pellet.
-    jp          spawn_food
+            ; Is Y == -1 or Y == 32?
+            sne         head_y, #ff
+            jp          game_over
+            sne         head_y, 32
+            jp          game_over
 
-.check_bounds
+            ; Keep playing.
+            ret
 
-    ; Is X == -1 or X == 64?
-    sne         head_x, #ff
-    jp          game_over
-    sne         head_x, 64
-    jp          game_over
+spawn_food
 
-    ; Is Y == -1 or Y == 32?
-    sne         head_y, #ff
-    jp          game_over
-    sne         head_y, 32
-    jp          game_over
+            ; Pick a random position to spawn food at.
+            rnd         food_x, #3f
+            rnd         food_y, #1f
 
-    ; Keep playing.
-    ret
+            ; If Y > 7 then we can draw food.
+            ld          v0, 7
+            subn        v0, food_y
+            se          vf, 0
+            jp          draw_food
 
-.spawn_food
+            ; If X < 54 then we can draw food.
+            ld          v0, 54
+            subn        v0, food_x
+            se          vf, 1
+            jp          draw_food
 
-    ; Pick a random position to spawn food at.
-    rnd         food_x, #3f
-    rnd         food_y, #1f
+            ; Overlapping the score area, try again.
+            jp          spawn_food
 
-    ; If Y > 7 then we can draw food.
-    ld          v0, 7
-    subn        v0, food_y
-    se          vf, 0
-    jp          draw_food
+draw_food
 
-    ; If X < 54 then we can draw food.
-    ld          v0, 54
-    subn        v0, food_x
-    se          vf, 1
-    jp          draw_food
+            ; Draw it there.
+            ld          i, dot
+            drw         food_x, food_y, 1
 
-    ; Overlapping the score area, try again.
-    jp          spawn_food
+            ; If nothing was already there, we're okay.
+            sne         vf, 0
+            ret
 
-.draw_food
+            ; Otherwise, put it back and try again.
+            drw         food_x, food_y, 1
+            jp          spawn_food
 
-    ; Draw it there.
-    ld          i, dot
-    drw         food_x, food_y, 1
+draw_score
 
-    ; If nothing was already there, we're okay.
-    sne         vf, 0
-    ret
+            ; Where the score (in BCD) will be stored.
+            ld          i, scratch
 
-    ; Otherwise, put it back and try again.
-    drw         food_x, food_y, 1
-    jp          spawn_food
+            ; Write the score as BCD, load it into v0..v2.
+            ld          b, score
+            ld          v2, [i]
 
-.draw_score
+            ; Where to draw the score...
+            ld          v0, 55
+            ld          v3, 0
 
-    ; Where the score (in BCD) will be stored.
-    ld          i, scratch
+            ; Draw the tens digit (stored in v1).
+            ld          f, v1
+            drw         v0, v3, 5
+            add         v0, 5
 
-    ; Write the score as BCD, load it into v0..v2.
-    ld          b, score
-    ld          v2, [i]
+            ; Draw the ones digit (stored in v2).
+            ld          f, v2
+            drw         v0, v3, 5
+            ret
 
-    ; Where to draw the score...
-    ld          v0, 55
-    ld          v3, 0
+game_over
 
-    ; Draw the tens digit (stored in v1).
-    ld          f, v1
-    drw         v0, v3, 5
-    add         v0, 5
+            ; Play a long, buzz sound.
+            ld          v0, 15
+            ld          st, v0
 
-    ; Draw the ones digit (stored in v2).
-    ld          f, v2
-    drw         v0, v3, 5
-    ret
+            ; Stop the program.
+            exit
 
-.game_over
+start_position
 
-    ; Play a long, buzz sound.
-    ld          v0, 15
-    ld          st, v0
+            ; The initial snake is 3 pixels long.
+            byte        %111.....
 
-    ; Stop the program.
-    exit
+dot
 
-.start_position
+            ; The snake and food are all a single dot.
+            byte        %1.......
 
-    ; The initial snake is 3 pixels long.
-    byte        $111.....
+scratch
 
-.dot
+            ; Memory reserved for the BCD score value.
+            pad         3
 
-    ; The snake and food are all a single dot.
-    byte        $1.......
+snake_tail
 
-.scratch
-
-    ; Memory reserved for the BCD score value.
-    reserve     3
-
-.snake_tail
-
-    ; This is where the snake is stored in memory. These
-    ; 6 bytes are the initial tail positions of the snake.
-    ;
-    ; The 4 padding is there just in case the first food
-    ; pellet just happens to be next to the snake's head.
-    ;
-    byte        0, 0, 0, 0, 10, 10, 11, 10, 12, 10
+            ; This is where the snake is stored in memory. These
+            ; 6 bytes are the initial tail positions of the snake.
+            ;
+            ; The 4 padding is there just in case the first food
+            ; pellet just happens to be next to the snake's head.
+            ;
+            byte        0, 0, 0, 0, 10, 10, 11, 10, 12, 10

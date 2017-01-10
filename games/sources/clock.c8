@@ -10,7 +10,7 @@
     ld      v4, 0
     ld      v5, 0
 
-.loop
+loop
 
     ; show the current time
     call    draw_clock
@@ -19,7 +19,7 @@
     ld      v0, 60
     ld      dt, v0
 
-.wait
+wait
 
     ; wait until 1 second has elapsed
     ld      v0, dt
@@ -45,7 +45,7 @@
     ; done
     jp      loop
 
-.draw_clock
+draw_clock
 
     ; load minute
     ld      i, time
@@ -82,6 +82,6 @@
     ; done
     ret
 
-.time
+time
 
     byte    0, 0, 0

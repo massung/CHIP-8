@@ -58,10 +58,10 @@ A heavily documented, example program for the game [Snake](https://en.wikipedia.
 Each line of assembly uses the following syntax:
 
 ```
-.label    instruction  arg0, arg1, ...   ; comment
+label instruction arg0, arg1, ... ; comment
 ```
 
-A label **must** appear at the very beginning of the line, and there **must** be at least a single whitespace character before the instruction or directive of a line (i.e. an instruction cannot appear at the beginning of a line).
+A label **must** appear at the very beginning of the line, and there **must** be at least a single whitespace character before the instruction or directive of a line (i.e. an instruction cannot appear at the beginning of a line). There are plenty of examples in `games/sources` to learn from.
 
 ### Registers
 
@@ -82,12 +82,12 @@ Literal constants can be in decimal, hexadecimal, or binary. Only decimal values
     ADD     V0, -2
     
 .ball
-    BYTE    $..1111..
-    BYTE    $.1....1.
-    BYTE    $1......1
-    BYTE    $1......1
-    BYTE    $.1....1.
-    BYTE    $..1111..
+    BYTE    %..1111..
+    BYTE    %.1....1.
+    BYTE    %1......1
+    BYTE    %1......1
+    BYTE    %.1....1.
+    BYTE    %..1111..
 ```
 
 Text literals can be added with single or double quotes, but there is no escape character. Usually this is just to add text information to the final ROM.
@@ -178,15 +178,16 @@ _(\*\*\*): When implementing 16x16 sprite drawing, note that the sprites are dra
 
 The assembler understands - beyond instructions - the following directives:
 
-| Directive          | Description
-|:-------------------|:-------------------
-| `ID EQU ..`        | Declare an identifier that to equal a literal constant, register, or label. Must be declared before being used.
-| `BREAK ..`         | Create a breakpoint. No instruction is written, but the emulator will break before the next instruction is executed.
-| `ASSERT ..`        | Create a conditional breakpoint. The emulator will only break if `VF` is non-zero when the assert is hit. 
-| `BYTE ..`          | Write bytes to the ROM. This can take bytes literals or text strings.
-| `WORD ..`          | Write 2-byte words to the ROM in MSB first byte order.
-| `ALIGN BOUNDARY`   | Align the ROM to a power of 2 byte boundary.
-| `RESERVE N`        | Write N zero-bytes to the ROM.
+| Directive    | Description
+|:-------------|:-------------------
+| `EQU`        | Declare the label to equal a literal constant instead of the current address. Must be declared before being used.
+| `VAR`        | Declare the label to represent a specific register instead of the current address. Must be declared before being used.
+| `BREAK`      | Create a breakpoint. No instruction is written, but the emulator will break before the next instruction is executed.
+| `ASSERT`     | Create a conditional breakpoint. The emulator will only break if `VF` is non-zero when the assert is hit. 
+| `BYTE`       | Write bytes to the ROM. This can take bytes literals or text strings.
+| `WORD`       | Write 2-byte words to the ROM in MSB first byte order.
+| `ALIGN`      | Align the ROM to a power of 2 byte boundary.
+| `PAD N`      | Write N zero-bytes to the ROM.
 
 ## Debugging
 
