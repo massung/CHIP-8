@@ -1,0 +1,241 @@
+; Lunar lander clone
+;
+;
+
+
+; where is the target platform?
+plat_x      var         vc
+
+; where is the lander?
+lander_x    var         vd
+lander_y    var         ve
+
+; which image of the lander to use
+lander      var         va
+
+fuel        var         v9
+
+; speed of descent (delay between drops)
+delay       var         vb
+
+
+up          equ         5  ; w
+left        equ         7  ; a
+right       equ         9  ; d
+
+
+            high
+            cls
+
+
+
+; randomly place the lander somewhere
+launch_lander
+            rnd         lander_x, #7f
+            ld          v0, 111
+            subn        v0, lander_x
+            sne         vf, 1
+            jp          launch_lander
+            ld          lander_y, 0
+            ld          lander, 0
+            ld          fuel, 23
+
+; randomly place the platform on the ground
+place_platform
+            rnd         plat_x, #7f
+
+            ; ensure plat_x < 112
+            ld          v0, 111
+            subn        v0, plat_x
+            sne         vf, 1
+            jp          place_platform
+
+            ; drop the LSB so it's at an even position
+            shr         plat_x
+            shl         plat_x
+
+
+; setup initial position
+
+            call        draw_ground
+            call        draw_platform
+            call        draw_fuel
+            call        draw_lander
+
+            ld          delay, 30
+            ld          dt, delay
+
+loop
+            ld          v0, dt
+            sne         v0, 0
+            call        fall_lander
+            call        input
+
+            jp          loop
+
+
+
+fall_lander
+            add         delay, -1
+            sne         delay, -1
+            ld          delay, 0
+            ld          dt, delay
+            call        draw_lander
+            add         lander_y, 1
+            call        draw_lander
+            sne         vf, 0
+            ret
+
+            ; TODO: collision!!
+            call        draw_lander
+            add         lander_y, -1
+            call        draw_lander
+            exit
+
+
+input
+            ld          v0, up
+            sknp        v0
+            jp          thrust
+
+            ld          v0, left
+            sknp        v0
+            jp          move_left
+
+            ld          v0, right
+            sknp        v0
+            jp          move_right
+
+            ; no input
+            ret
+
+
+thrust
+            ret
+
+move_left
+            call        dec_fuel
+            se          vf, 1
+            ret
+            call        draw_lander
+            add         lander_x, -2
+            call        draw_lander
+            ret
+
+move_right
+            call        dec_fuel
+            se          vf, 1
+            ret
+            call        draw_lander
+            add         lander_x, 2
+            call        draw_lander
+            ret
+
+
+dec_fuel    ld          vf, 0
+            sne         fuel, 64
+            ret                         ; out of fuel
+            add         fuel, 1
+            ld          i, fuel_bar
+            ld          v0, 120
+            drw         v0, fuel, 1
+            ld          vf, 1
+            ret
+
+
+draw_lander
+            ld          i, landers
+            add         i, lander
+            drw         lander_x, lander_y, 5
+            ret
+
+
+draw_ground
+            ld          i, ground
+            ld          v0, 0
+            ld          v1, 61
+ground_loop
+            drw         v0, v1, 3
+            add         v0, 8
+            sne         v0, 120
+            ret
+            jp          ground_loop
+
+
+draw_platform
+            ld          i, platform
+            ld          v0, plat_x
+            ld          v1, 61
+            drw         v0, v1, 3
+            add         v0, 8
+            drw         v0, v1, 3
+            ret
+
+draw_fuel
+            ld          v0, 120
+            ld          v1, 0
+            ld          i, fuel_text
+            drw         v0, v1, 12
+            add         v1, 12
+            add         i, v1
+            drw         v0, v1, 11
+
+            ld          i, fuel_bar
+            ld          v1, 63
+fuel_loop   drw         v0, v1, 1
+            add         v1, -1
+            se          v1, fuel
+            jp          fuel_loop
+            ret
+
+fuel_text   byte        %....111.
+            byte        %....1...
+            byte        %....11..
+            byte        %....1...
+            byte        %....1...
+            byte        %........
+            byte        %....1.1.
+            byte        %....1.1.
+            byte        %....1.1.
+            byte        %....1.1.
+            byte        %....111.
+            byte        %........
+            byte        %....111.
+            byte        %....1...
+            byte        %....111.
+            byte        %....1...
+            byte        %....111.
+            byte        %........
+            byte        %....1...
+            byte        %....1...
+            byte        %....1...
+            byte        %....1...
+            byte        %....111.
+
+
+fuel_bar    byte        %...11111
+
+ground      byte        %1.1.1.1.
+platform    byte        %.1.1.1.1
+            byte        %1.1.1.1.
+            byte        %.1.1.1.1
+
+landers     byte        %..1111..
+            byte        %11111111
+            byte        %11111111
+            byte        %.1....1.
+            byte        %111..111
+
+            byte        %.11111..
+            byte        %11111111
+            byte        %..111111
+            byte        %11....1.
+            byte        %.11..111
+
+            byte        %..1111..
+            byte        %11111111
+            byte        %11111111
+            byte        %.1....1.
+            byte        %111..111
+
+; TODO: add bitmaps for lander tilted left and right

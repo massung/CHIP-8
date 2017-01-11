@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	/// Current debug window address for disassembly.
+	/// Current start address for disassembled instructions.
 	///
 	Address uint
 
@@ -47,12 +47,6 @@ func Logln(s ...string) {
 	}
 }
 
-/// Output a formatted line to the log.
-///
-func Logf(f string, a ...interface{}) {
-	Log(fmt.Sprintf(f, a...))
-}
-
 /// Show the HELP text in the log.
 ///
 func DebugHelp() {
@@ -74,8 +68,8 @@ func DebugHelp() {
 /// the CHIP-8 program counter.
 ///
 func DebugAssembly(x, y int) {
-	if Address <= VM.PC - 38 || Address >= VM.PC - 2 || Address ^ VM.PC & 1 == 1 {
-		Address = VM.PC - 2
+	if Address <= VM.PC-38 || Address >= VM.PC-2 || Address ^ VM.PC&1 == 1 {
+		Address = VM.PC-2
 	}
 
 	// show the disassembled instructions
@@ -89,21 +83,21 @@ func DebugAssembly(x, y int) {
 
 			// highlight the current instruction
 			Renderer.FillRect(&sdl.Rect{
-				X: int32(x - 2),
-				Y: int32(y + i * 5) - 1,
+				X: int32(x-2),
+				Y: int32(y + i*5)-1,
 				W: 202,
 				H: 10,
 			})
 		}
 
-		DrawText(VM.Disassemble(Address + uint(i)), x, y + i * 5)
+		DrawText(VM.Disassemble(Address + uint(i)), x, y + i*5)
 
 		// is there a breakpoint on this instruction?
 		if _, exists := VM.Breakpoints[int(Address) + i]; exists {
 			Renderer.SetDrawColor(255, 0, 0, 255)
 			Renderer.DrawRect(&sdl.Rect{
-				X: int32(x - 2),
-				Y: int32(y + i * 5) - 1,
+				X: int32(x-2),
+				Y: int32(y + i*5)-1,
 				W: 202,
 				H: 10,
 			})
@@ -115,7 +109,7 @@ func DebugAssembly(x, y int) {
 ///
 func DebugRegisters(x, y int) {
 	for i := 0;i < 16;i++ {
-		DrawText(fmt.Sprintf("V%X = #%02X", i, VM.V[i]), x, y + i * 10)
+		DrawText(fmt.Sprintf("V%X = #%02X", i, VM.V[i]), x, y + i*10)
 	}
 
 	// shift over to next column
@@ -123,22 +117,22 @@ func DebugRegisters(x, y int) {
 
 	// show the v-registers
 	DrawText(fmt.Sprintf("DT = #%02X", VM.GetDelayTimer()), x, y)
-	DrawText(fmt.Sprintf("ST = #%02X", VM.GetSoundTimer()), x, y + 10)
-	DrawText(fmt.Sprintf(" I = #%04X", VM.I), x, y + 30)
+	DrawText(fmt.Sprintf("ST = #%02X", VM.GetSoundTimer()), x, y+10)
+	DrawText(fmt.Sprintf(" I = #%04X", VM.I), x, y+30)
 
 	// show the HP-RPL user flags
 	for i := 0;i < 8;i++ {
-		DrawText(fmt.Sprintf("R%d = #%02X", i, VM.R[i]), x, y+50+i*10)
+		DrawText(fmt.Sprintf("R%d = #%02X", i, VM.R[i]), x, y+50 + i*10)
 	}
 }
 
 /// Show a memory dump at I.
 ///
 func DebugMemory() {
-	Logln("Memory dump near I...")
+	Logln("Memory dump at I...")
 
 	// starting address
-	a := int(VM.I) & 0xFFF0
+	a := int(VM.I)
 
 	// 12 bytes will be written here
 	s := make([]string, 20)
@@ -153,7 +147,7 @@ func DebugMemory() {
 		// fill in the 12-byte row
 		for i := 0;i < 12;i++ {
 			if n+i < 0x10000 {
-				s[i+1] = fmt.Sprintf("%02X", VM.Memory[n + i])
+				s[i+1] = fmt.Sprintf("%02X", VM.Memory[n+i])
 			} else {
 				s[i+1] = ""
 			}

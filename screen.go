@@ -38,7 +38,7 @@ func RefreshScreen() {
 	w, h := VM.GetResolution()
 
 	// the pitch (in bits) is the width, calculate shift
-	shift := uint(6) + (w >> 7)
+	shift := uint(6) + (w>>7)
 
 	// draw all the pixels
 	for p := uint(0);p < w*h;p++ {

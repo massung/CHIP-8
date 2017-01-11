@@ -10,6 +10,7 @@ import (
 	"github.com/massung/chip-8/chip8"
 	"github.com/sqweek/dialog"
 	"github.com/veandco/go-sdl2/sdl"
+	"fmt"
 )
 
 var (
@@ -136,6 +137,9 @@ func Load(file string) {
 		// load a dummy ROM so something is there
 		VM, _ = chip8.LoadROM(chip8.Dummy)
 	} else {
+		Log(fmt.Sprint(VM.Size), "bytes")
+
+		// should the VM start paused?
 		Paused = BreakOnLoad
 
 		// clear flag so it doesn't happen on reset

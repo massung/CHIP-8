@@ -1,6 +1,8 @@
 package chip8
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -37,13 +39,17 @@ type CHIP_8 struct {
 	///
 	Stack [16]uint
 
+	/// SP is the stack pointer.
+	///
+	SP uint
+
 	/// PC is the program counter. All programs begin at 0x200.
 	///
 	PC uint
 
-	/// SP is the stack pointer.
+	/// The size of the ROM.
 	///
-	SP uint
+	Size int
 
 	/// I is the Address register.
 	///
@@ -155,19 +161,14 @@ func LoadROM(program []byte) (*CHIP_8, error) {
 
 	// initialize any data that doesn't Reset()
 	vm := &CHIP_8{
+		Size: len(program),
 		Breakpoints: make(map[int]Breakpoint),
 		Speed: 700,
 	}
 
-	// copy the RCA 1802 512 byte ROM into the CHIP-8
-	for i, b := range rca_1802 {
-		vm.ROM[i] = b
-	}
-
-	// copy the program into the CHIP-8
-	for i, b := range program {
-		vm.ROM[i+0x200] = b
-	}
+	// copy the RCA 1802 512 byte ROM into the CHIP-8 followed by the program
+	copy(vm.ROM[:0x200], rca_1802[:])
+	copy(vm.ROM[0x200:], program[:])
 
 	// reset the VM memory
 	vm.Reset()
@@ -214,12 +215,91 @@ func LoadFile(file string) (*CHIP_8, error) {
 	}
 }
 
+/// Restore the current state of the CHIP-8 virtual machine.
+///
+func LoadImage(file string) (*CHIP_8, error) {
+	image, err := ioutil.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+
+	// create a new virtual machine
+	vm := &CHIP_8{
+		Breakpoints: make(map[int]Breakpoint),
+		Speed: 700,
+	}
+
+	// create a byte reader
+	buf := bytes.NewReader(image)
+
+	// build the VM from the image
+	binary.Read(buf, binary.LittleEndian, &vm.Size)
+	binary.Read(buf, binary.LittleEndian, &vm.Pitch)
+	binary.Read(buf, binary.LittleEndian, vm.Stack)
+	binary.Read(buf, binary.LittleEndian, &vm.SP)
+	binary.Read(buf, binary.LittleEndian, &vm.PC)
+	binary.Read(buf, binary.LittleEndian, &vm.I)
+	binary.Read(buf, binary.LittleEndian, &vm.V)
+	binary.Read(buf, binary.LittleEndian, &vm.R)
+	binary.Read(buf, binary.LittleEndian, &vm.Clock)
+	binary.Read(buf, binary.LittleEndian, &vm.DT)
+	binary.Read(buf, binary.LittleEndian, &vm.ST)
+
+	// get the current time; it will be the new base
+	now := time.Now().UnixNano()
+
+	// offset the delay timer and sound timer accordingly
+	vm.DT = now + (vm.DT-vm.Clock)
+	vm.ST = now + (vm.ST-vm.Clock)
+
+	// fix the time to match
+	vm.Clock = now
+
+	// only load as much video memory as is present
+	w, h := vm.GetResolution()
+
+	// read the ROM into the virtual machine followed by all of memory
+	binary.Read(buf, binary.LittleEndian, vm.ROM[:0x200+vm.Size])
+	binary.Read(buf, binary.LittleEndian, vm.Memory)
+	binary.Read(buf, binary.LittleEndian, vm.Video[:(w*h)>>3])
+
+	return vm, nil
+}
+
+/// Save the current state of the CHIP-8 virtual machine.
+///
+func (vm *CHIP_8) SaveImage(file string) error {
+	buf := new(bytes.Buffer)
+
+	// only save as much video memory as needed
+	w, h := vm.GetResolution()
+
+	println(vm.Size)
+
+	// construct the final binary
+	binary.Write(buf, binary.LittleEndian, vm.Size)
+	binary.Write(buf, binary.LittleEndian, vm.Pitch)
+	binary.Write(buf, binary.LittleEndian, vm.Stack)
+	binary.Write(buf, binary.LittleEndian, vm.SP)
+	binary.Write(buf, binary.LittleEndian, vm.PC)
+	binary.Write(buf, binary.LittleEndian, vm.I)
+	binary.Write(buf, binary.LittleEndian, vm.V)
+	binary.Write(buf, binary.LittleEndian, vm.R)
+	binary.Write(buf, binary.LittleEndian, vm.Clock)
+	binary.Write(buf, binary.LittleEndian, vm.DT)
+	binary.Write(buf, binary.LittleEndian, vm.ST)
+	binary.Write(buf, binary.LittleEndian, vm.ROM[:0x200+vm.Size])
+	binary.Write(buf, binary.LittleEndian, vm.Memory)
+	binary.Write(buf, binary.LittleEndian, vm.Video[:(w*h)>>3])
+
+	// write the file to disk
+	return ioutil.WriteFile(file, buf.Bytes(), 666)
+}
+
 /// Reset the CHIP-8 virtual machine memory.
 ///
 func (vm *CHIP_8) Reset() {
-	for i, b := range vm.ROM {
-		vm.Memory[i] = b
-	}
+	copy(vm.Memory[:], vm.ROM[:])
 
 	// reset video memory
 	vm.Video = [0x440]byte{}
@@ -234,10 +314,8 @@ func (vm *CHIP_8) Reset() {
 	// reset Address register
 	vm.I = 0
 
-	// reset virtual registers
+	// reset virtual registers and user flags
 	vm.V = [16]byte{}
-
-	// reset HP-RPL user flags
 	vm.R = [8]byte{}
 
 	// reset timer registers
@@ -253,18 +331,6 @@ func (vm *CHIP_8) Reset() {
 
 	// not in high-res mode
 	vm.Pitch = 8
-}
-
-/// Save the current state of the CHIP-8 virtual machine.
-///
-func (vm *CHIP_8) Save(file string) {
-	// TODO:
-}
-
-/// Restore the current state of the CHIP-8 virtual machine.
-///
-func (vm *CHIP_8) Restore(file string) {
-	// TODO:
 }
 
 /// HighRes returns true if the CHIP-8 is in high resolution mode.
@@ -946,7 +1012,7 @@ func (vm *CHIP_8) draw(a, x, y uint, n byte) byte {
 	y = y*vm.Pitch
 
 	// draw each row of the sprite
-	for _, s := range vm.Memory[a: a + uint(n)] {
+	for _, s := range vm.Memory[a:a+uint(n)] {
 		n := y+b
 
 		// clip pixels that are off screen
