@@ -1,10 +1,12 @@
 package chip8
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"time"
+	"unicode"
 )
 
 /// CHIP_8 virtual machine emulator.
@@ -146,9 +148,9 @@ func (call SysCall) Error() string {
 
 /// Load a ROM from a byte array and return a new CHIP-8 virtual machine.
 ///
-func LoadROM(program []byte) (*CHIP_8, int) {
+func LoadROM(program []byte) (*CHIP_8, error) {
 	if len(program) > 0x1000 - 0x200 {
-		panic("Program too large to fit in memory!")
+		return nil, errors.New("Program too large to fit in memory!")
 	}
 
 	// initialize any data that doesn't Reset()
@@ -170,31 +172,46 @@ func LoadROM(program []byte) (*CHIP_8, int) {
 	// reset the VM memory
 	vm.Reset()
 
-	return vm, len(program)
-}
-
-/// Load a ROM file and return a new CHIP-8 virtual machine.
-///
-func LoadFile(file string) (*CHIP_8, int) {
-	program, err := ioutil.ReadFile(file)
-	if err != nil {
-		panic(err)
-	}
-
-	return LoadROM(program)
+	return vm, nil
 }
 
 /// Load a compiled assembly and return a new CHIP-8 virtual machine.
 ///
-func LoadAssembly(asm *Assembly) (*CHIP_8, int) {
-	vm, size := LoadROM(asm.ROM)
+func LoadAssembly(asm *Assembly) (*CHIP_8, error) {
+	if vm, err := LoadROM(asm.ROM); err != nil {
+		return nil, err
+	} else {
+		// set all the breakpoints found in the assembly
+		for _, b := range asm.Breakpoints {
+			vm.SetBreakpoint(b)
+		}
 
-	// set all the breakpoints from the assembly
-	for _, b := range asm.Breakpoints {
-		vm.SetBreakpoint(b)
+		return vm, nil
 	}
+}
 
-	return vm, size
+/// Load a ROM file and return a new CHIP-8 virtual machine.
+///
+func LoadFile(file string) (*CHIP_8, error) {
+	if program, err := ioutil.ReadFile(file); err != nil {
+		return nil, err
+	} else {
+		for _, c := range string(program) {
+			if unicode.IsSpace(c) || unicode.IsGraphic(c) {
+				continue
+			}
+
+			// file is a binary rom, load that
+			return LoadROM(program)
+		}
+
+		// a text file that needs assembled
+		if asm, err := Assemble(program); err != nil {
+			return nil, err
+		} else {
+			return LoadAssembly(asm)
+		}
+	}
 }
 
 /// Reset the CHIP-8 virtual machine memory.

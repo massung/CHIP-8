@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io/ioutil"
 )
 
 /// Assembly is a completely assembled source file.
@@ -29,7 +28,7 @@ type Assembly struct {
 
 /// Assemble an input CHIP-8 source code file.
 ///
-func Assemble(file string) (out *Assembly, err error) {
+func Assemble(program []byte) (out *Assembly, err error) {
 	var line int
 
 	// create an empty, return assembly
@@ -57,14 +56,8 @@ func Assemble(file string) (out *Assembly, err error) {
 		}
 	}()
 
-	// read the entire file in
-	content, err := ioutil.ReadFile(file)
-	if err != nil {
-		panic(err)
-	}
-
 	// create simple line scanner over the file
-	reader := bytes.NewReader(bytes.ToUpper(content))
+	reader := bytes.NewReader(bytes.ToUpper(program))
 	scanner := bufio.NewScanner(reader)
 
 	// parse and assemble
@@ -82,7 +75,7 @@ func Assemble(file string) (out *Assembly, err error) {
 			msb := byte(t.val.(int)>>8)
 			lsb := byte(t.val.(int)&0xFF)
 
-			// note: This "just works" because all labels are guaranteed to be
+			// NOTE: This "just works" because all labels are guaranteed to be
 			//       addressed within 12-bits. There are only a handful of
 			//       instructions that take an immediate Address:
 			//

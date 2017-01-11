@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/massung/chip-8/chip8"
@@ -126,34 +125,22 @@ func LoadDialog() {
 }
 
 func Load(file string) {
-	if file == "" {
-		Logln("Loading PONG... ")
-		VM, _ = chip8.LoadROM(chip8.Pong)
+	var err error
+
+	Logln("Loading", filepath.Base(file))
+
+	// create a new virtual machine
+	if VM, err = chip8.LoadFile(file); err != nil {
+		Log(err.Error())
+
+		// load a dummy ROM so something is there
+		VM, _ = chip8.LoadROM(chip8.Dummy)
 	} else {
-		base := filepath.Base(file)
+		Paused = BreakOnLoad
 
-		// show the action being taken
-		Logln("Loading", base)
-
-		// is this a chip-8 assembly source file?
-		if strings.ToUpper(filepath.Ext(base)) == ".C8" {
-			asm, err := chip8.Assemble(file)
-			if err != nil {
-				Log(err.Error())
-			}
-
-			// even on error, the assembly is valid
-			VM, _ = chip8.LoadAssembly(asm)
-		} else {
-			VM, _ = chip8.LoadFile(file)
-		}
+		// clear flag so it doesn't happen on reset
+		BreakOnLoad = false
 	}
-
-	// pause if the -b flag was passed
-	Paused = BreakOnLoad
-
-	// clear flag so it doesn't happen on reset
-	BreakOnLoad = false
 }
 
 func Refresh() {
