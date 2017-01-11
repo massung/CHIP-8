@@ -78,22 +78,21 @@ Finally, the Super CHIP-8, which was used on the HP-48 calculators, contained 8,
 Literal constants can be in decimal, hexadecimal, or binary. Only decimal values can be negative, and binary allows the use of `.` in place of `0` to make it easier to visualize sprites.
 
 ```
-    LD      V0, #FF
-    ADD     V0, -2
+        LD      V0, #FF
+        ADD     V0, -2
     
-.ball
-    BYTE    %..1111..
-    BYTE    %.1....1.
-    BYTE    %1......1
-    BYTE    %1......1
-    BYTE    %.1....1.
-    BYTE    %..1111..
+BALL    BYTE    %..1111..
+        BYTE    %.1....1.
+        BYTE    %1......1
+        BYTE    %1......1
+        BYTE    %.1....1.
+        BYTE    %..1111..
 ```
 
 Text literals can be added with single or double quotes, but there is no escape character. Usually this is just to add text information to the final ROM.
 
 ```
-    BYTE    "A little game made by ME!"
+        BYTE    "A little game made by ME!"
 ```
 
 ### Instruction Set
