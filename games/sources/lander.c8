@@ -1,241 +1,449 @@
-; Lunar lander clone
-;
-;
+;; Lunar lander clone
+;;
+;;
 
 
-; where is the target platform?
-plat_x      var         vc
+;; Current score.
+score           var         v3
 
-; where is the lander?
-lander_x    var         vd
-lander_y    var         ve
+;; Where is the lander?
+;;
+x               var         v4
+y               var         v5
 
-; which image of the lander to use
-lander      var         va
+;; Current thrust vector (y) and tilt (x). These are #80
+;; when not moving. When they drop to #40 then the lander
+;; X/Y will decrease by 1. When they reach #C0 then the
+;; lander X/Y will increase by 1. Then the the thrust/tilt
+;; will reset back to #80.
+;;
+thrust          var         v6
+tilt            var         v7
 
-fuel        var         v9
+;; Thrust vectors (X and Y). Each loop iteration these will
+;; be applied to the thrust/tilt of the lander.
+;;
+vx              var         v8     ; affects tilt
+vy              var         v9     ; affects thrust
 
-; speed of descent (delay between drops)
-delay       var         vb
+;; How much fuel is in use and is left.
+;;
+fuel_use        var         va
+fuel            var         vb
 
+;; Where is the target platform along the ground.
+;;
+plat_x          var         vc
 
-up          equ         5  ; w
-left        equ         7  ; a
-right       equ         9  ; d
+;; Key mapping.
+;;
+up              equ         5     ; w
+left            equ         7     ; a
+right           equ         9     ; d
 
-
-            high
-            cls
-
-
-
-; randomly place the lander somewhere
-launch_lander
-            rnd         lander_x, #7f
-            ld          v0, 111
-            subn        v0, lander_x
-            sne         vf, 1
-            jp          launch_lander
-            ld          lander_y, 0
-            ld          lander, 0
-            ld          fuel, 23
-
-; randomly place the platform on the ground
-place_platform
-            rnd         plat_x, #7f
-
-            ; ensure plat_x < 112
-            ld          v0, 111
-            subn        v0, plat_x
-            sne         vf, 1
-            jp          place_platform
-
-            ; drop the LSB so it's at an even position
-            shr         plat_x
-            shl         plat_x
+;; Rate at which gravity is applied.
+;;
+g               equ         15
 
 
-; setup initial position
+;; Initial setup for the game
+;;
+start           high
 
-            call        draw_ground
-            call        draw_platform
-            call        draw_fuel
-            call        draw_lander
-
-            ld          delay, 30
-            ld          dt, delay
-
-loop
-            ld          v0, dt
-            sne         v0, 0
-            call        fall_lander
-            call        input
-
-            jp          loop
+                ; Initialize globals.
+                ld          score, 0
 
 
+;; Initial setup for every level
+;;
+init            cls
 
-fall_lander
-            add         delay, -1
-            sne         delay, -1
-            ld          delay, 0
-            ld          dt, delay
-            call        draw_lander
-            add         lander_y, 1
-            call        draw_lander
-            sne         vf, 0
-            ret
+                ; Initialize all major pieces.
+                call        init_lander
+                call        init_ground
+                call        fill_tank
+                call        draw_score
 
-            ; TODO: collision!!
-            call        draw_lander
-            add         lander_y, -1
-            call        draw_lander
-            exit
+                ; Main game loop.
+loop            call        gravity
+                call        move
+                call        input
 
-
-input
-            ld          v0, up
-            sknp        v0
-            jp          thrust
-
-            ld          v0, left
-            sknp        v0
-            jp          move_left
-
-            ld          v0, right
-            sknp        v0
-            jp          move_right
-
-            ; no input
-            ret
+                ; Do it all over again...
+                jp          loop
 
 
-thrust
-            ret
+;; Initialize the lander, pick a random position
+;;
+init_lander     rnd         x, #7f
 
-move_left
-            call        dec_fuel
-            se          vf, 1
-            ret
-            call        draw_lander
-            add         lander_x, -2
-            call        draw_lander
-            ret
+                ; Make sure it doesn't overlap the fuel.
+                ld          v0, 111
+                subn        v0, x
+                se          vf, 0
+                jp          init_lander
 
-move_right
-            call        dec_fuel
-            se          vf, 1
-            ret
-            call        draw_lander
-            add         lander_x, 2
-            call        draw_lander
-            ret
+                ; Setup the y position and initial thrust.
+                ld          y, 0
 
+                ; Clear the direction of travel.
+                ld          vx, 0
+                ld          vy, 0
 
-dec_fuel    ld          vf, 0
-            sne         fuel, 64
-            ret                         ; out of fuel
-            add         fuel, 1
-            ld          i, fuel_bar
-            ld          v0, 120
-            drw         v0, fuel, 1
-            ld          vf, 1
-            ret
+                ; Reset the thrust/tilt vectors.
+                ld          thrust, #80
+                ld          tilt, #80
 
+                ; When fuel_use rolls over, fuel is expended.
+                ld          fuel_use, 0
+                ld          fuel, 64
 
-draw_lander
-            ld          i, landers
-            add         i, lander
-            drw         lander_x, lander_y, 5
-            ret
+                ; Setup the initial delay and start falling.
+                ld          v0, g
+                ld          dt, v0
 
+                ; Display it.
+                call        draw_lander
+                ret
 
-draw_ground
-            ld          i, ground
-            ld          v0, 0
-            ld          v1, 61
-ground_loop
-            drw         v0, v1, 3
-            add         v0, 8
-            sne         v0, 120
-            ret
-            jp          ground_loop
+;; Initialize the ground and pick a random platform.
+;;
+init_ground     ld          i, ground
+                ld          v0, 0
+                ld          v1, 61
 
+                ; Draw each segment of the ground.
+draw_ground     drw         v0, v1, 3
+                add         v0, 8
+                sne         v0, 120
+                jp          draw_platform
+                jp          draw_ground
 
-draw_platform
-            ld          i, platform
-            ld          v0, plat_x
-            ld          v1, 61
-            drw         v0, v1, 3
-            add         v0, 8
-            drw         v0, v1, 3
-            ret
+                ; Pick a random place for the landing platform.
+draw_platform   rnd         plat_x, #7f
 
-draw_fuel
-            ld          v0, 120
-            ld          v1, 0
-            ld          i, fuel_text
-            drw         v0, v1, 12
-            add         v1, 12
-            add         i, v1
-            drw         v0, v1, 11
+                ; Make sure it doesn't overlap the fuel.
+                ld          v0, 103
+                subn        v0, plat_x
+                se          vf, 0
+                jp          draw_platform
 
-            ld          i, fuel_bar
-            ld          v1, 63
-fuel_loop   drw         v0, v1, 1
-            add         v1, -1
-            se          v1, fuel
-            jp          fuel_loop
-            ret
+                ; The platform must be on an even pixel.
+                shr         plat_x
+                shl         plat_x
 
-fuel_text   byte        %....111.
-            byte        %....1...
-            byte        %....11..
-            byte        %....1...
-            byte        %....1...
-            byte        %........
-            byte        %....1.1.
-            byte        %....1.1.
-            byte        %....1.1.
-            byte        %....1.1.
-            byte        %....111.
-            byte        %........
-            byte        %....111.
-            byte        %....1...
-            byte        %....111.
-            byte        %....1...
-            byte        %....111.
-            byte        %........
-            byte        %....1...
-            byte        %....1...
-            byte        %....1...
-            byte        %....1...
-            byte        %....111.
+                ; Draw the platform
+                ld          i, platform
+                ld          v0, plat_x
+                drw         v0, v1, 3
+                add         v0, 8
+                drw         v0, v1, 3
+                ret
 
 
-fuel_bar    byte        %...11111
+;; Called every iteration. Checks if the delay has expired and
+;; then applies gravity to the VY vector.
+;;
+gravity         ld          v0, dt
+                se          v0, 0
+                jp          apply_vy
 
-ground      byte        %1.1.1.1.
-platform    byte        %.1.1.1.1
-            byte        %1.1.1.1.
-            byte        %.1.1.1.1
+                ; Increase the downward velocity of the lander.
+                add         vy, 1
 
-landers     byte        %..1111..
-            byte        %11111111
-            byte        %11111111
-            byte        %.1....1.
-            byte        %111..111
+                ; Reset the delay timer.
+                ld          v0, g
+                ld          dt, v0
 
-            byte        %.11111..
-            byte        %11111111
-            byte        %..111111
-            byte        %11....1.
-            byte        %.11..111
+                ; Apply VY to the thrust vector.
+apply_vy        add         thrust, vy
 
-            byte        %..1111..
-            byte        %11111111
-            byte        %11111111
-            byte        %.1....1.
-            byte        %111..111
+                ; Should the lander fall to the ground?
+                ld          v0, #c0
+                sub         v0, thrust
+                sne         vf, 0
+                jp          drop_lander
 
-; TODO: add bitmaps for lander tilted left and right
+                ; Should the lander climb higher?
+                ld          v0, #60
+                sub         v0, thrust
+                sne         vf, 0
+                ret
+
+                ; Launch the lander higher.
+                call        draw_lander
+                add         y, -1
+                call        draw_lander
+
+                ; Reset the thrust vector.
+                ld          thrust, #80
+                add         thrust, v0
+                ret
+
+                ; The lander should fall a bit.
+drop_lander     call        draw_lander
+                add         y, 1
+                call        draw_lander
+
+                ; Did the lander hit the ground?
+                se          vf, 0
+                jp          land
+
+                ; Reset the thrust vector.
+                ld          thrust, #80
+                ret
+
+                ; The lander collided with the ground.
+land            call        draw_lander
+                add         y, -1
+                call        draw_lander
+
+                ; get more points
+                call        fuel_bonus
+                exit
+
+
+;; Called every iteration, Applies VX to the tilt vector and
+;; determines if the lander should move left or right.
+;;
+move            add         tilt, vx
+
+                ; Should the lander list to the left?
+                ld          v0, #40
+                subn        v0, tilt
+                se          vf, 0
+                jp          tilt_right
+
+                ; Move and redraw the lander.
+                call        draw_lander
+                add         x, -1
+                call        draw_lander
+
+                ; Reset the tilt vector.
+                ld          tilt, #80
+                ret
+
+                ; Should the lander list to the right?
+tilt_right      ld          v0, #c0
+                sub         v0, tilt
+                se          vf, 0
+                ret
+
+                ; Move and redraw the lander.
+                call        draw_lander
+                add         x, 1
+                call        draw_lander
+
+                ; Reset the tilt vector.
+                ld          tilt, #80
+                ret
+
+
+;; Called once per iteration to process controls.
+;;
+input           ld          v0, up
+                sknp        v0
+                call        thrust_up
+                ld          v0, left
+                sknp        v0
+                call        thrust_left
+                ld          v0, right
+                sknp        v0
+                jp          thrust_right
+                ret
+
+                ; Expend a good amount of fuel.
+thrust_up       ld          v0, #80
+                call        spend_fuel
+
+                ; Does the player have fuel left?
+                se          vf, 1
+                ret
+
+                ; Add to the VY vector.
+                add         vy, -2
+                ret
+
+                ; Spend some fuel to thrust sideways.
+thrust_left     ld          v0, #40
+                call        spend_fuel
+
+                ; Is there any fuel left?
+                se          vf, 1
+                ret
+
+                ; Update the tilt vector.
+                add         vx, -2
+                ret
+
+                ; Spend some fuel to thrust sideways.
+thrust_right    ld          v0, #40
+                call        spend_fuel
+
+                ; Is there any fuel left?
+                se          vf, 1
+                ret
+
+                ; Update the tilt vector.
+                add         vx, 2
+                ret
+
+
+;; Called when thrusting to use some more fuel. V0 should
+;; contain the amount of fuel to use. VF will be 0 if there
+;; is no more fuel to spend.
+;;
+spend_fuel      ld          vf, 0
+                sne         fuel, 64
+                ret
+
+                ; Spend the fuel request in V0.
+                sub         fuel_use, v0
+                se          vf, 0
+                ret
+
+                ; A bar of fuel has been spent.
+                ld          i, fuel_bar
+                ld          v0, 120
+                drw         v0, fuel, 1
+                add         fuel, 1
+                ld          vf, 1
+                ret
+
+
+;; Call to erase or redraw the lander sprite.
+;;
+draw_lander     ld          i, lander
+                drw         x, y, 5
+                ret
+
+
+;; Add some points (V0) to the score.
+;;
+add_score       ld          r, v0
+                call        draw_score
+                ld          v0, r
+                add         score, v0
+                call        draw_score
+                ret
+
+
+;; Draw the score in the upper-left corner.
+;;
+draw_score      ld          i, scratch
+                ld          b, score
+                ld          v2, [i]
+
+                ; Where to draw the score.
+                ld          vd, 0
+                ld          ve, 0
+
+                ; Draw all three digits.
+                ld          f, v0
+                drw         vd, ve, 5
+                add         vd, 5
+                ld          f, v1
+                drw         vd, ve, 5
+                add         vd, 5
+                ld          f, v2
+                drw         vd, ve, 5
+                ret
+
+
+;; Keep adding fuel back until it is full.
+;;
+fill_tank       ld          i, fuel_text
+                ld          v0, 120
+                ld          v1, 0
+
+                ; Draw the "fuel" sprite.
+                drw         v0, v1, 12
+                add         v1, 12
+                add         i, v1
+                drw         v0, v1, 11
+
+                ; Fill up the fuel bar.
+                ld          i, fuel_bar
+add_fuel        add         fuel, -1
+                drw         v0, fuel, 1
+
+                ; Stop when full.
+                se          fuel, 0
+                jp          add_fuel
+                ret
+
+
+
+;; Take the rest of the fuel and add it to the score.
+;;
+fuel_bonus      ld          i, fuel_bar
+                ld          v0, 120
+                drw         v0, fuel, 1
+                add         fuel, 1
+
+                ; add a point and redraw the score
+                ld          v0, 1
+                call        add_score
+
+                ; Stop when empty.
+                se          fuel, 64
+                jp          fuel_bonus
+                ret
+
+
+
+;; Scratch memory for all kinds of things...
+;;
+scratch         pad         16
+
+
+
+;; This is the FUEL gauge text. It's a tall, vertical sprite.
+;;
+fuel_text       byte        %....111.
+                byte        %....1...
+                byte        %....11..
+                byte        %....1...
+                byte        %....1...
+                byte        %........
+                byte        %....1.1.
+                byte        %....1.1.
+                byte        %....1.1.
+                byte        %....1.1.
+                byte        %....111.
+                byte        %........
+                byte        %....111.
+                byte        %....1...
+                byte        %....111.
+                byte        %....1...
+                byte        %....111.
+                byte        %........
+                byte        %....1...
+                byte        %....1...
+                byte        %....1...
+                byte        %....1...
+                byte        %....111.
+
+;; A single line of the fuel gauge used.
+;;
+fuel_bar        byte        %...11111
+
+;; Ground bitmap. The Platform bitmap is offset by a byte so that when
+;; the two overlap the platform will be solid.
+;;
+ground          byte        %1.1.1.1.
+platform        byte        %.1.1.1.1
+                byte        %1.1.1.1.
+                byte        %.1.1.1.1
+
+;; Lander sprite.
+;;
+lander          byte        %..1111..
+                byte        %11111111
+                byte        %11111111
+                byte        %.1....1.
+                byte        %111..111
+
+;; Fuel tank sprite.
+tank            byte        %11......
+                byte        %11......
