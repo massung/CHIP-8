@@ -397,6 +397,10 @@ fuel_bonus      ld          i, fuel_bar
 scratch         pad         16
 
 
+;; Contains the height of the ground every 8 pixels.
+;;
+height          pad         15
+
 
 ;; This is the FUEL gauge text. It's a tall, vertical sprite.
 ;;
@@ -438,11 +442,14 @@ platform        byte        %.1.1.1.1
 
 ;; Lander sprite.
 ;;
-lander          byte        %..1111..
-                byte        %11111111
-                byte        %11111111
-                byte        %.1....1.
-                byte        %111..111
+lander          byte        %..111...
+                byte        %1111111.
+                byte        %1111111.
+                byte        %.1...1..
+                byte        %111.111.
+                byte        %.1...1..   ; with thrust...
+                byte        %..1.1...
+                byte        %...1...
 
 ;; Fuel tank sprite.
 tank            byte        %11......
