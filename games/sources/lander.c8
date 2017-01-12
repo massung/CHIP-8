@@ -6,9 +6,6 @@
 ;; Have fun!
 ;;
 
-;; Current score.
-score           var         v3
-
 ;; Where is the lander?
 ;;
 x               var         v4
@@ -53,15 +50,12 @@ g               equ         15
 ;; checked and the thrust can be hidden if desired.
 
 
-;; Initial setup for the game
+;; Initial setup for the game.
 ;;
 start           high
 
-                ; Initialize globals.
-                ld          score, 0
 
-
-;; Initial setup for every level
+;; Initial setup for every level.
 ;;
 init            cls
 
@@ -70,7 +64,6 @@ init            cls
                 call        init_platform
                 call        init_lander
                 call        fill_tank
-                call        draw_score
 
                 ; Main game loop.
 loop            call        gravity
@@ -84,6 +77,10 @@ loop            call        gravity
 ;; Initialize the lander, pick a random position
 ;;
 init_lander     rnd         x, #7f
+
+                ; Reset the thrust flag.
+                ld          v0, 0
+                ld          r, v0
 
                 ; Make sure it doesn't overlap the fuel.
                 ld          v0, 111
@@ -118,22 +115,15 @@ init_lander     rnd         x, #7f
 ;; Initialize the ground and pick a random platform.
 ;;
 init_ground     ld          v7, 64
-                rnd         v0, 15
-                add         v0, 6
+                rnd         v0, 7
+                add         v0, 8
                 sub         v7, v0
 
                 ; X coordinate offset.
-                ld          v0, v7
                 ld          v8, 0
 
-                ; Save the initial elevation.
-                ld          i, elevation
-                ld          [i], v0
-
-                ; Draw the initial elevation.
-                call        draw_elevation
-
                 ; There are 2, 7-wide features.
+                call        pick_feature
                 call        pick_feature
                 call        pick_feature
                 ret
@@ -144,10 +134,10 @@ pick_feature    rnd         v0, 7
                 shl         v0
                 shl         v0
 
-                ; Load the feature data (7 bytes long).
+                ; Load the feature data (5 bytes long).
                 ld          i, features
                 add         i, v0
-                ld          v6, [i]
+                ld          v4, [i]
 
                 ; Add the current elevation to each delta.
                 add         v0, v7
@@ -155,16 +145,14 @@ pick_feature    rnd         v0, 7
                 add         v2, v7
                 add         v3, v7
                 add         v4, v7
-                add         v5, v7
-                add         v6, v7
 
                 ; Write the elevations to memory.
                 ld          i, elevation
                 add         i, v8
-                ld          [i], v6
+                ld          [i], v4
 
                 ; Update the current elevation.
-                ld          v7, v6
+                ld          v7, v2
 
                 ; Draw each elevation.
                 call        draw_elevation
@@ -175,10 +163,6 @@ pick_feature    rnd         v0, 7
                 ld          v0, v3
                 call        draw_elevation
                 ld          v0, v4
-                call        draw_elevation
-                ld          v0, v5
-                call        draw_elevation
-                ld          v0, v6
                 call        draw_elevation
                 ret
 
@@ -218,6 +202,13 @@ init_platform   rnd         v1, 15
                 ld          i, elevation
                 add         i, v1
                 ld          v0, [i]
+
+                ; If too low (>= 64) then try again.
+                ld          v2, #c0
+                ld          v3, v0
+                and         v3, v2
+                se          v3, 0
+                jp          init_platform
 
                 ; Set the platform X position (v1 * 3)
                 ld          plat_x, v1
@@ -295,7 +286,9 @@ land            call        hide_lander
 
                 ; get more points
                 call        fuel_bonus
-                exit
+
+                ; reset and start the next level
+                jp          init
 
 
 ;; Called every iteration, Applies VX to the tilt vector and
@@ -348,7 +341,7 @@ input           ld          v0, up
                 ret
 
                 ; Expend a good amount of fuel.
-thrust_up       ld          v0, #80
+thrust_up       ld          v0, #C0
                 call        spend_fuel
 
                 ; Does the player have fuel left?
@@ -362,7 +355,7 @@ thrust_up       ld          v0, #80
                 jp          draw_thrust
 
                 ; Spend some fuel to thrust sideways.
-thrust_left     ld          v0, #40
+thrust_left     ld          v0, #60
                 call        spend_fuel
 
                 ; Is there any fuel left?
@@ -374,7 +367,7 @@ thrust_left     ld          v0, #40
                 ret
 
                 ; Spend some fuel to thrust sideways.
-thrust_right    ld          v0, #40
+thrust_right    ld          v0, #60
                 call        spend_fuel
 
                 ; Is there any fuel left?
@@ -420,7 +413,7 @@ draw_thrust     ld          i, lander_thrust
                 ld          v0, y
                 add         v0, 5
                 drw         x, v0, 3
-                break
+
                 ; Toggle whether or not the thrust is visible.
                 ld          v0, r
                 ld          v1, 1
@@ -429,36 +422,67 @@ draw_thrust     ld          i, lander_thrust
                 ret
 
 
-;; Add some points (V0) to the score.
+;; Add some points to the score.
 ;;
-add_score       ld          r, v0
-                call        draw_score
-                ld          v0, r
-                add         score, v0
-                call        draw_score
+add_score       ld          i, score
+                ld          v1, [i]
+                add         v0, 1
+
+                ; Another hundred points to add?
+                sne         v0, 100
+                jp          write_score
+                ld          v0, 0
+                add         v1, 1
+
+                ; Save the score back to memory.
+write_score     ld          [i], v1
                 ret
 
 
-;; Draw the score in the upper-left corner.
-;;
-draw_score      ld          i, scratch
-                ld          b, score
-                ld          v2, [i]
+;; Player completely ran out of points. Game over.
+game_over       ld          i, game_over_text
+                ld          v2, 5
+                ld          v0, 0
+                ld          v1, 0
 
-                ; Where to draw the score.
-                ld          vd, 0
-                ld          ve, 0
+                ; G
+                drw         v0, v1, 5
+                add         v0, 5
+                add         i, v2
 
-                ; Draw all three digits.
-                ld          f, v0
-                drw         vd, ve, 5
-                add         vd, 5
-                ld          f, v1
-                drw         vd, ve, 5
-                add         vd, 5
-                ld          f, v2
-                drw         vd, ve, 5
-                ret
+                ; A
+                drw         v0, v1, 5
+                add         v0, 5
+                add         i, v2
+
+                ; M
+                drw         v0, v1, 5
+                add         v0, 5
+                add         i, v2
+
+                ; E
+                drw         v0, v1, 5
+                add         v0, 7
+                add         i, v2
+
+                ; O
+                drw         v0, v1, 5
+                add         v0, 5
+                add         i, v2
+
+                ; V
+                drw         v0, v1, 5
+                add         v0, 5
+                add         i, v2
+
+                ; E
+                drw         v0, v1, 5
+                add         v0, 5
+                add         i, v2
+
+                ; R
+                drw         v0, v1, 5
+                exit
 
 
 ;; Keep adding fuel back until it is full.
@@ -484,7 +508,6 @@ add_fuel        add         fuel, -1
                 ret
 
 
-
 ;; Take the rest of the fuel and add it to the score.
 ;;
 fuel_bonus      ld          i, fuel_bar
@@ -493,7 +516,6 @@ fuel_bonus      ld          i, fuel_bar
                 add         fuel, 1
 
                 ; add a point and redraw the score
-                ld          v0, 1
                 call        add_score
 
                 ; Stop when empty.
@@ -503,9 +525,14 @@ fuel_bonus      ld          i, fuel_bar
 
 
 
-;; Scratch memory for all kinds of things...
+;; Scratch memory for all kinds of things (like BCD)...
 ;;
 scratch         pad         16
+
+
+;; The score is stored here in memory.
+;;
+score           pad         2
 
 
 ;; Contains the height of the ground every 8 pixels.
@@ -538,6 +565,58 @@ fuel_text       byte        %....111.
                 byte        %....1...
                 byte        %....1...
                 byte        %....111.
+
+
+;; Displayed when game is over.
+;;
+game_over_text  byte        %.11.....
+                byte        %1.......
+                byte        %1.1.....
+                byte        %1.1.....
+                byte        %.11.....
+
+                byte        %.1......
+                byte        %1.1.....
+                byte        %111.....
+                byte        %1.1.....
+                byte        %1.1.....
+
+                byte        %1.1.....
+                byte        %111.....
+                byte        %111.....
+                byte        %1.1.....
+                byte        %1.1.....
+
+                byte        %111.....
+                byte        %1.......
+                byte        %11......
+                byte        %1.......
+                byte        %111.....
+
+                byte        %.1......
+                byte        %1.1.....
+                byte        %1.1.....
+                byte        %1.1.....
+                byte        %.1......
+
+                byte        %1.1.....
+                byte        %1.1.....
+                byte        %1.1.....
+                byte        %1.1.....
+                byte        %.1......
+
+                byte        %111.....
+                byte        %1.......
+                byte        %11......
+                byte        %1.......
+                byte        %111.....
+
+                byte        %11......
+                byte        %1.1.....
+                byte        %11......
+                byte        %1.1.....
+                byte        %1.1.....
+
 
 ;; A single line of the fuel gauge used.
 ;;
@@ -573,15 +652,15 @@ lander_thrust   byte        %.1.1....
                 byte        %..1.....
 
 ;; All the terrain features possible. The ground begins at a random
-;; elevation but then picks 2 features (that are 7 wide each) to put
-;; next to each other. The features here are actually 8 bytes each
-;; so that it's easy to (*8) to get to them in memory.
+;; elevation but then picks 3 features (that are 5 bits wide each) to
+;; put next to each other. Each feature stored as 8 bytes long so
+;; they can be shifted to easily.
 ;;
-features        byte        0,  0,  0,  0,  0,  0,  0, 0
-                byte        0, -2, -4, -6, -4, -2,  0, 0
-                byte        2,  4,  6,  6,  8,  4,  0, 0
-                byte        0,  0, -4, -8, -8, -8, -2, 0
-                byte        4,  8, 12, 12, 12,  2, -4, 0
-                byte        0,  0,  2,  2,  0, -2, -2, 0
-                byte        2,  2, -2, -2, -2, -2,  0, 0
-                byte        0, -4, -4, -2,  0,  0,  4, 0
+features        byte        0,  0,  0,  0,  0,    0, 0, 0   ; flat
+                byte        0,  2,  6,  2,  0,    0, 0, 0   ; peak
+                byte        0, -2, -6, -2,  0,    0, 0, 0   ; valley
+                byte        4,  8,  8,  4,  0,    0, 0, 0   ; high peak
+                byte       -4, -8, -8, -4, -0,    0, 0, 0   ; low valley
+                byte        0,  0,  2,  2,  2,    0, 0, 0   ; ramp up
+                byte        2, -2,  2, -2,  0,    0, 0, 0   ; rough 1
+                byte       -2,  4, -2,  4,  0,    0, 0, 0   ; rough 2
