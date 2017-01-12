@@ -62,6 +62,7 @@ init            cls
                 ; Initialize all major pieces.
                 call        init_ground
                 call        init_platform
+                call        smooth_terrain
                 call        init_lander
                 call        fill_tank
 
@@ -219,6 +220,39 @@ init_platform   rnd         v1, 15
                 ; Draw the platform at the proper elevation.
                 ld          i, platform
                 drw         plat_x, v0, 3
+                ret
+
+
+;; Add in rough terrain to make it a bit more smooth.
+;;
+smooth_terrain  ld          v2, 0
+
+                ; Get the x coordinate of this terrain block
+next_block      ld          v1, v2
+                shl         v1
+                shl         v1
+                shl         v1
+
+                ; If this is where the platform is, skip it.
+                sne         v1, plat_x
+                jp          xxx
+
+                ; Load the elevation at that point.
+                ld          i, elevation
+                add         i, v2
+                ld          v0, [i]
+
+                ; Add new or erase
+                ld          i, rough_terrain
+                rnd         v3, 1
+                add         i, v3
+                sub         v0, v3
+                drw         v1, v0, 1
+
+                ; Advance to the next terrain block.
+xxx             add         v2, 1
+                se          v2, 15
+                jp          next_block
                 ret
 
 
@@ -639,6 +673,11 @@ platform        byte        %.1.1.1.1
                 byte        %.1.1.1.1
                 byte        %1.1.1.1.
                 byte        %.1.1.1.1
+
+;; Rough terrain sprites.
+;;
+rough_terrain   byte        %..1.1...
+                byte        %.1.1.1..
 
 ;; Lander sprite.
 ;;
