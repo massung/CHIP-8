@@ -519,7 +519,7 @@ func (a *Assembly) assembleSKNP(tokens []token) []byte {
 func (a *Assembly) assembleOR(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_V); ok {
 		x := ops[0].val.(int)
-		y := ops[0].val.(int)
+		y := ops[1].val.(int)
 
 		return []byte{0x80|byte(x), byte(y << 4) | 0x01}
 	}
@@ -532,7 +532,7 @@ func (a *Assembly) assembleOR(tokens []token) []byte {
 func (a *Assembly) assembleAND(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_V); ok {
 		x := ops[0].val.(int)
-		y := ops[0].val.(int)
+		y := ops[1].val.(int)
 
 		return []byte{0x80|byte(x), byte(y << 4) | 0x02}
 	}
@@ -545,7 +545,7 @@ func (a *Assembly) assembleAND(tokens []token) []byte {
 func (a *Assembly) assembleXOR(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_V); ok {
 		x := ops[0].val.(int)
-		y := ops[0].val.(int)
+		y := ops[1].val.(int)
 
 		return []byte{0x80|byte(x), byte(y << 4) | 0x03}
 	}
