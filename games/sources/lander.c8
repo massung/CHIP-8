@@ -127,8 +127,13 @@ init_ground     ld          v7, 64
                 ; There are 2, 7-wide features.
                 call        pick_feature
                 call        pick_feature
-                call        pick_feature
-                ret
+
+                ; Save the final elevation and draw it.
+                ld          i, elevation
+                add         i, v8
+                ld          v0, v7
+                ld          [i], v0
+                jp          draw_elevation
 
                 ; Pick a random feature.
 pick_feature    rnd         v0, 7
@@ -139,7 +144,7 @@ pick_feature    rnd         v0, 7
                 ; Load the feature data (5 bytes long).
                 ld          i, features
                 add         i, v0
-                ld          v4, [i]
+                ld          v6, [i]
 
                 ; Add the current elevation to each delta.
                 add         v0, v7
@@ -147,14 +152,13 @@ pick_feature    rnd         v0, 7
                 add         v2, v7
                 add         v3, v7
                 add         v4, v7
+                add         v5, v7
+                add         v6, v7
 
                 ; Write the elevations to memory.
                 ld          i, elevation
                 add         i, v8
-                ld          [i], v4
-
-                ; Update the current elevation.
-                ld          v7, v4
+                ld          [i], v6
 
                 ; Draw each elevation.
                 call        draw_elevation
@@ -165,6 +169,10 @@ pick_feature    rnd         v0, 7
                 ld          v0, v3
                 call        draw_elevation
                 ld          v0, v4
+                call        draw_elevation
+                ld          v0, v5
+                call        draw_elevation
+                ld          v0, v6
                 call        draw_elevation
                 ret
 
@@ -398,7 +406,7 @@ wait_0          ld          v0, dt
 move            add         tilt, vx
 
                 ; Should the lander list to the left?
-                ld          v0, #40
+tilt_left       ld          v0, #40
                 subn        v0, tilt
                 se          vf, 0
                 jp          tilt_right
@@ -407,6 +415,10 @@ move            add         tilt, vx
                 call        hide_lander
                 add         x, -1
                 call        draw_lander
+
+                ; Did the lander crash into something?
+                se          vf, 0
+                jp          crash
 
                 ; Reset the tilt vector.
                 ld          tilt, #80
@@ -422,6 +434,10 @@ tilt_right      ld          v0, #c0
                 call        hide_lander
                 add         x, 1
                 call        draw_lander
+
+                ; Did the lander crash into something?
+                se          vf, 0
+                jp          crash
 
                 ; Reset the tilt vector.
                 ld          tilt, #80
@@ -867,16 +883,21 @@ explosion       byte        %........
                 byte        %........
                 byte        %1.1.1...
 
-;; All the terrain features possible. The ground begins at a random
-;; elevation but then picks 3 features (that are 5 bits wide each) to
-;; put next to each other. Each feature stored as 8 bytes long so
-;; they can be shifted to easily.
+;; There are 8 possible terrain "features" that can be combined
+;; together in order to create some nice looking variations. Each
+;; is 7-bytes for a feature (+1 padding for shifting).
 ;;
-features        byte        0,  0,  0,  0,  0,    0, 0, 0
-                byte        0,  2, -6,  2,  4,    0, 0, 0
-                byte        0, -2,  6, -2, -4,    0, 0, 0
-                byte        2,  4,  6,  2,  2,    0, 0, 0
-                byte       -2, -4, -6, -2, -2,    0, 0, 0
-                byte        2,  6,  4,  2,  0,    0, 0, 0
-                byte       -2, -6, -4, -2,  0,    0, 0, 0
-                byte       -2,  2, -2,  2,  0,    0, 0, 0
+features        byte        0,  -2,  -4,  -6,  -4,  -2,   0,   0
+                byte        0,   2,   4,   6,   4,   2,   0,   0
+
+                ; little hill+valley and little valley+hill
+                byte        2,   6,   2,   0,  -2,  -6,  -2,   0
+                byte       -2,  -6,  -2,   0,   2,   6,   2,   0
+
+                ; tall hill + deep valley
+                byte        4,   8,  14,  14,  10,   8,   4,   0
+                byte       -4,  -8, -14, -14, -10,  -8,  -4,   0
+
+                ; cliffs
+                byte       -2,  -4,  -6, -10, -14, -12,  -8,   0
+                byte       -8, -12, -14, -10,  -6,  -4,  -2,   0
