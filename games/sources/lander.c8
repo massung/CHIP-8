@@ -116,7 +116,7 @@ init_lander     rnd         x, #7f
 ;; Initialize the ground and pick a random platform.
 ;;
 init_ground     ld          v7, 64
-                rnd         v0, 7
+                rnd         v0, 15
                 add         v0, 8
                 sub         v7, v0
 
@@ -153,7 +153,7 @@ pick_feature    rnd         v0, 7
                 ld          [i], v4
 
                 ; Update the current elevation.
-                ld          v7, v2
+                ld          v7, v4
 
                 ; Draw each elevation.
                 call        draw_elevation
@@ -235,22 +235,23 @@ next_block      ld          v1, v2
 
                 ; If this is where the platform is, skip it.
                 sne         v1, plat_x
-                jp          xxx
+                jp          no_cap
 
                 ; Load the elevation at that point.
                 ld          i, elevation
                 add         i, v2
                 ld          v0, [i]
+                add         v0, -2
 
-                ; Add new or erase
-                ld          i, rough_terrain
-                rnd         v3, 1
+                ; Pick a random terrain cap.
+                ld          i, terrain_caps
+                rnd         v3, 7
+                shl         v3
                 add         i, v3
-                sub         v0, v3
-                drw         v1, v0, 1
+                drw         v1, v0, 2
 
                 ; Advance to the next terrain block.
-xxx             add         v2, 1
+no_cap          add         v2, 1
                 se          v2, 15
                 jp          next_block
                 ret
@@ -331,8 +332,8 @@ land            call        hide_lander
                 jp          crash
 
                 ; Is VY too fast?
-                ld          v0, 20
-                sub         vy, v0      ; is vy <= 20?
+                ld          v0, 14
+                sub         vy, v0      ; is vy <= v0?
                 se          vf, 0
                 jp          crash
 
@@ -609,19 +610,20 @@ add_fuel        add         fuel, -1
 
 ;; Take the rest of the fuel and add it to the score.
 ;;
-fuel_bonus      ld          i, fuel_bar
-                ld          v0, 120
-                drw         v0, fuel, 1
-                add         fuel, 1
-
-                ; add a point and redraw the score
-                call        add_score
-
-                ; Stop when empty.
-                se          fuel, 64
-                jp          fuel_bonus
+fuel_bonus      se          fuel, 64
                 ret
 
+                ; Erase the next level of fuel.
+                ld          i, fuel_bar
+                ld          v0, 120
+                drw         v0, fuel, 1
+
+                ; Take away from the fuel and add score.
+                add         fuel, 1
+                call        add_score
+
+                ; Keep going until fuel is gone.
+                jp          fuel_bonus
 
 
 ;; Scratch memory for all kinds of things (like BCD)...
@@ -641,29 +643,34 @@ elevation       pad         15
 
 ;; This is the FUEL gauge text. It's a tall, vertical sprite.
 ;;
-fuel_text       byte        %....111.
-                byte        %....1...
-                byte        %....11..
-                byte        %....1...
-                byte        %....1...
+fuel_text       byte        %...111..
+                byte        %...1....
+                byte        %...11...
+                byte        %...1....
+                byte        %...1....
                 byte        %........
-                byte        %....1.1.
-                byte        %....1.1.
-                byte        %....1.1.
-                byte        %....1.1.
-                byte        %....111.
+                byte        %...1.1..
+                byte        %...1.1..
+                byte        %...1.1..
+                byte        %...1.1..
+                byte        %...111..
                 byte        %........
-                byte        %....111.
-                byte        %....1...
-                byte        %....111.
-                byte        %....1...
-                byte        %....111.
+                byte        %...111..
+                byte        %...1....
+                byte        %...111..
+                byte        %...1....
+                byte        %...111..
                 byte        %........
-                byte        %....1...
-                byte        %....1...
-                byte        %....1...
-                byte        %....1...
-                byte        %....111.
+                byte        %...1....
+                byte        %...1....
+                byte        %...1....
+                byte        %...1....
+                byte        %...111..
+
+
+;; A single line of the fuel gauge used.
+;;
+fuel_bar        byte        %.1111111
 
 
 ;; Displayed when game is over.
@@ -749,11 +756,6 @@ level_text      byte        %1.......
                 byte        %1.......
                 byte        %111.....
 
-
-;; A single line of the fuel gauge used.
-;;
-fuel_bar        byte        %...11111
-
 ;; Ground bitmap. The Platform bitmap is offset by a byte so that when
 ;; the two overlap the platform will be solid.
 ;;
@@ -772,10 +774,34 @@ platform        byte        %.1.1.1.1
                 byte        %1.1.1.1.
                 byte        %.1.1.1.1
 
-;; Rough terrain sprites.
+;; These are the sprite "caps" on the top of terrains that do not have
+;; the platform. They are intended to give variation and smooth the
+;; terrain out a bit. Each is just two bytes rendered on top of each
+;; elevation.
 ;;
-rough_terrain   byte        %..1.1...
+terrain_caps    byte        %..1.1...
                 byte        %.1.1.1..
+
+                byte        %..1.....
+                byte        %.1.1.1..
+
+                byte        %....1...
+                byte        %.1.1.1..
+
+                byte        %........
+                byte        %.1.1....
+
+                byte        %........
+                byte        %...1.1..
+
+                byte        %......1.
+                byte        %.1...1.1
+
+                byte        %..1.....
+                byte        %.1.1....
+
+                byte        %........
+                byte        %.1...1..
 
 ;; Lander sprite.
 ;;
@@ -824,11 +850,11 @@ explosion       byte        %........
 ;; put next to each other. Each feature stored as 8 bytes long so
 ;; they can be shifted to easily.
 ;;
-features        byte        0,  0,  0,  0,  0,    0, 0, 0   ; flat
-                byte        0,  2,  6,  2,  0,    0, 0, 0   ; peak
-                byte        0, -2, -6, -2,  0,    0, 0, 0   ; valley
-                byte        4,  8,  8,  4,  0,    0, 0, 0   ; high peak
-                byte       -4, -8, -8, -4, -0,    0, 0, 0   ; low valley
-                byte        0,  0,  2,  2,  2,    0, 0, 0   ; ramp up
-                byte        2, -2,  2, -2,  0,    0, 0, 0   ; rough 1
-                byte       -2,  4, -2,  4,  0,    0, 0, 0   ; rough 2
+features        byte        0,  0,  0,  0,  0,    0, 0, 0
+                byte        0,  2, -6,  2,  4,    0, 0, 0
+                byte        0, -2,  6, -2, -4,    0, 0, 0
+                byte        2,  4,  6,  2,  2,    0, 0, 0
+                byte       -2, -4, -6, -2, -2,    0, 0, 0
+                byte        2,  6,  4,  2,  0,    0, 0, 0
+                byte       -2, -6, -4, -2,  0,    0, 0, 0
+                byte       -2,  2, -2,  2,  0,    0, 0, 0
