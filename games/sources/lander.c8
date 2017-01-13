@@ -608,7 +608,8 @@ thrust_up       ld          v0, #C0
                 se          vf, 1
                 ret
 
-                ; Add to the VY vector.
+                ; Add to the VY vector, but not too much.
+                se          vy, -60
                 add         vy, -2
 
                 ; Show the thrust.
@@ -623,6 +624,7 @@ thrust_left     ld          v0, #60
                 ret
 
                 ; Update the tilt vector.
+                se          vx, -60
                 add         vx, -2
                 ret
 
@@ -635,6 +637,7 @@ thrust_right    ld          v0, #60
                 ret
 
                 ; Update the tilt vector.
+                se          vx, 60
                 add         vx, 2
                 ret
 
@@ -689,7 +692,7 @@ inc_score       ld          i, score
                 add         v0, 1
 
                 ; Another hundred points to add?
-                sne         v0, 100
+                se          v0, 100
                 jp          write_score
                 ld          v0, 0
                 add         v1, 1
