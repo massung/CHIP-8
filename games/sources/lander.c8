@@ -60,6 +60,7 @@ start           high
 init            cls
 
                 ; Initialize all major pieces.
+                call        init_border
                 call        init_ground
                 call        init_platform
                 call        smooth_terrain
@@ -90,7 +91,7 @@ init_lander     rnd         x, #7f
                 jp          init_lander
 
                 ; Setup the y position and initial thrust.
-                ld          y, 0
+                ld          y, 1
 
                 ; Clear the direction of travel.
                 ld          vx, 0
@@ -585,6 +586,20 @@ game_over       ld          i, game_over_text
                 exit
 
 
+;; Draw the border that wraps the fuel tank.
+;;
+init_border     ld          i, border
+                ld          v0, 120
+                ld          v1, 0
+
+                ; Draw the border completely.
+draw_border     drw         v0, v1, 8
+                add         v1, 8
+                se          v1, 64
+                jp          draw_border
+                ret
+
+
 ;; Keep adding fuel back until it is full.
 ;;
 fill_tank       ld          i, fuel_text
@@ -670,7 +685,14 @@ fuel_text       byte        %...111..
 
 ;; A single line of the fuel gauge used.
 ;;
-fuel_bar        byte        %.1111111
+fuel_bar        byte        %..11111.
+
+
+;; Border that surrounds the fuel gauge. It's there so the lander
+;; collides when too far right, but also too far left when wrapping
+;; video memory.
+;;
+border          word        #4141,#4141,#4141,#4141
 
 
 ;; Displayed when game is over.

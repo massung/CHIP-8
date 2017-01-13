@@ -100,7 +100,7 @@ type CHIP_8 struct {
 
 	/// Number of bytes per scan line. This is 8 in low mode and 16 when high.
 	///
-	Pitch uint
+	Pitch int
 
 	/// A mapping of address breakpoints.
 	///
@@ -466,7 +466,7 @@ func (vm *CHIP_8) GetSoundTimer() byte {
 
 /// GetResolution returns the width and height of the CHIP-8.
 ///
-func (vm *CHIP_8) GetResolution() (uint, uint) {
+func (vm *CHIP_8) GetResolution() (int, int) {
 	return vm.Pitch<<3, vm.Pitch<<2
 }
 
@@ -711,10 +711,10 @@ func (vm *CHIP_8) scrollUp(n byte) {
 	}
 
 	// shift all the pixels up
-	copy(vm.Video[:], vm.Video[uint(n)*vm.Pitch:])
+	copy(vm.Video[:], vm.Video[int(n)*vm.Pitch:])
 
 	// wipe the bottom-most pixels
-	for i := 0x400-uint(n)*vm.Pitch;i < 0x400;i++ {
+	for i := 0x400-int(n)*vm.Pitch;i < 0x400;i++ {
 		vm.Video[i] = 0
 	}
 }
@@ -727,10 +727,10 @@ func (vm *CHIP_8) scrollDown(n byte) {
 	}
 
 	// shift all the pixels down
-	copy(vm.Video[uint(n)*vm.Pitch:], vm.Video[:])
+	copy(vm.Video[int(n)*vm.Pitch:], vm.Video[:])
 
 	// wipe the top-most pixels
-	for i := uint(0);i < uint(n)*vm.Pitch;i++ {
+	for i := 0;i < int(n)*vm.Pitch;i++ {
 		vm.Video[i] = 0
 	}
 }
@@ -738,13 +738,13 @@ func (vm *CHIP_8) scrollDown(n byte) {
 /// Scroll pixels right.
 ///
 func (vm *CHIP_8) scrollRight() {
-	shift := vm.Pitch>>2
+	shift := uint(vm.Pitch>>2)
 
 	for i := 0x3FF;i >= 0;i-- {
 		vm.Video[i] >>= shift
 
 		// get the lower bits from the previous byte
-		if uint(i)&(vm.Pitch-1) > 0 {
+		if i&(vm.Pitch-1) > 0 {
 			vm.Video[i] |= vm.Video[i-1] << (8-shift)
 		}
 	}
@@ -753,9 +753,9 @@ func (vm *CHIP_8) scrollRight() {
 /// Scroll pixels left.
 ///
 func (vm *CHIP_8) scrollLeft() {
-	shift := vm.Pitch>>2
+	shift := uint(vm.Pitch>>2)
 
-	for i := uint(0);i < 0x400;i++ {
+	for i := 0;i < 0x400;i++ {
 		vm.Video[i] <<= shift
 
 		// get the upper bits from the next byte
@@ -1001,43 +1001,45 @@ func (vm *CHIP_8) loadRandom(x uint, b byte) {
 
 /// Draw a sprite in memory to video at x,y with a height of n.
 ///
-func (vm *CHIP_8) draw(a, x, y uint, n byte) byte {
+func (vm *CHIP_8) draw(a uint, x, y int8, n byte) byte {
 	c := byte(0)
 
 	// byte offset and bit index
-	b := x>>3
-	i := x&7
+	b := uint(x>>3)
+	i := uint(x&7)
 
 	// which scan line will it render on
-	y = y*vm.Pitch
+	pos := int(y)*vm.Pitch
 
 	// draw each row of the sprite
 	for _, s := range vm.Memory[a:a+uint(n)] {
-		n := y+b
+		if pos >= 0 {
+			n := uint(pos) + b
 
-		// clip pixels that are off screen
-		if (n >= 256 && vm.Pitch == 8) || (n >= 1024 && vm.Pitch == 16) {
-			continue
+			// stop once outside of video memory
+			if (n >= 256 && vm.Pitch == 8) || (n >= 1024 && vm.Pitch == 16) {
+				break
+			}
+
+			// origin pixel values
+			b0 := vm.Video[n]
+			b1 := vm.Video[n + 1]
+
+			// xor pixels
+			vm.Video[n] ^= s >> i
+
+			// are there pixels overlapping next byte?
+			if i > 0 {
+				vm.Video[n + 1] ^= s << (8 - i)
+			}
+
+			// were any pixels turned off?
+			c |= b0 & ^vm.Video[n]
+			c |= b1 & ^vm.Video[n + 1]
 		}
-
-		// origin pixel values
-		b0 := vm.Video[n]
-		b1 := vm.Video[n+1]
-
-		// xor pixels
-		vm.Video[n] ^= s >> i
-
-		// are there pixels overlapping next byte?
-		if i > 0 {
-			vm.Video[n+1] ^= s << (8-i)
-		}
-
-		// were any pixels turned off?
-		c |= b0 & ^vm.Video[n]
-		c |= b1 & ^vm.Video[n+1]
 
 		// next scan line
-		y += vm.Pitch
+		pos += vm.Pitch
 	}
 
 	// non-zero if there was a collision
@@ -1047,7 +1049,7 @@ func (vm *CHIP_8) draw(a, x, y uint, n byte) byte {
 /// Draw a sprite at I to video memory at vx, vy.
 ///
 func (vm *CHIP_8) drawSprite(x, y uint, n byte) {
-	if vm.draw(vm.I, uint(vm.V[x]), uint(vm.V[y]), n) != 0 {
+	if vm.draw(vm.I, int8(vm.V[x]), int8(vm.V[y]), n) != 0 {
 		vm.V[0xF] = 1
 	} else {
 		vm.V[0xF] = 0
@@ -1061,11 +1063,11 @@ func (vm *CHIP_8) drawSpriteEx(x, y uint) {
 	a := vm.I
 
 	// draw sprite columns
-	for i := uint(0);i < 16;i++ {
-		c |= vm.draw(a+(i<<1), uint(vm.V[x]), uint(vm.V[y])+i, 1)
+	for i := byte(0);i < 16;i++ {
+		c |= vm.draw(a+uint(i<<1), int8(vm.V[x]), int8(vm.V[y]+i), 1)
 
 		if vm.Pitch == 16 {
-			c |= vm.draw(a+(i<<1)+1, uint(vm.V[x])+8, uint(vm.V[y])+i, 1)
+			c |= vm.draw(a+uint(i<<1)+1, int8(vm.V[x]+8), int8(vm.V[y]+i), 1)
 		}
 	}
 
