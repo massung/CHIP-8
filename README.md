@@ -11,7 +11,7 @@ CHIP-8 is written in [Go](https://golang.org/) and uses [SDL](https://www.libsdl
 ## Usage
 
 ```
-CHIP-8 [-b] [ROM|C8]
+CHIP-8 [-b] [-o <file>] [ROM|C8]
 ```
 
 Simply pass the filename of the ROM or a .C8 assembly source file to the executable and CHIP-8 will load it, assemble if required, and begin running it. If no ROM or C8 file is specified then a default ROM ([Pong](https://en.wikipedia.org/wiki/Pong)) is loaded. 
@@ -52,7 +52,7 @@ While playing the games that exist for the CHIP-8 might be fun for a while, the 
 
 Just about every assembler for the CHIP-8 is different, and this one is, too. It's designed with a few niceties in mind. So, bear this in mind and take a few minutes to peruse this documentation.
 
-A heavily documented, example program for the game [Snake](https://en.wikipedia.org/wiki/Snake_(video_game)) can be found in [games/sources/snake.c8](https://github.com/massung/chip-8/blob/master/games/sources/snake.c8).
+Heavily documented, example programs can be found in [games/sources/](https://github.com/massung/chip-8/tree/master/games/sources).
 
 ### Syntax
 
@@ -222,6 +222,10 @@ Assembly language - if you're not used to it - can be a bit daunting at first. H
 ## Example CHIP-8 Programs
 
 There are a few example programs in `games/sources` for you you play around with, modify, and learn from.
+
+## Thanks!
+
+Special thanks to Andy Kelts for creating the nice icons and my good friend [Mark Allender](https://github.com/allender) for his continual harassment. And if you think this is cool, check out Mark's [Apple II emulator](https://github.com/allender/apple2emu)! 
 
 ## That's all folks!
 
