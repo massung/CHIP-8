@@ -24,7 +24,8 @@ Once the program is running, press `H` at any time to see the list of key comman
 | `Ctrl`+`Back`     | Reset and break
 | `[`               | Decrease emulation speed
 | `]`               | Increase emulation speed
-| `F3`              | Load ROM or C8 assembler file
+| `F2`              | Reload ROM or C8 assembler file
+| `F3`              | Open ROM or C8 assembler file
 
 | Debugging         | Description
 |:------------------|:-----------------

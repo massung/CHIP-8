@@ -59,6 +59,14 @@ start           high
 ;;
 init            cls
 
+                ; Show the current level and score.
+                call        next_level
+                call        draw_score
+
+                ; Wait for a key press or a few seconds.
+                call        wait
+                cls
+
                 ; Initialize all major pieces.
                 call        init_border
                 call        init_ground
@@ -68,12 +76,142 @@ init            cls
                 call        fill_tank
 
                 ; Main game loop.
-loop            call        gravity
+loop            call        input
                 call        move
-                call        input
+                call        gravity
+
+                ; Has the lander landed successfully?
+                ld          i, landed
+                ld          v0, [i]
+                se          v0, 0
+                jp          init
 
                 ; Do it all over again...
                 jp          loop
+
+
+;; Wait for a key press or a few seconds.
+;;
+wait            ld          v0, 180
+                ld          dt, v0
+
+                ; Was key A pressed (Z)?
+cont            ld          v0, #a
+                sknp        v0
+                ret
+
+                ; Has 3 seconds elapsed?
+                ld          v0, dt
+                se          v0, 0
+                jp          cont
+                ret
+
+
+;; Advance the level, display it, clear variables.
+;;
+next_level      ld          i, level
+                ld          v0, [i]
+
+                ; Write the new level # and clear the landed flag.
+                add         v0, 1
+                ld          v1, 0
+                ld          [i], v1
+
+                ; Display the level and # in the top left.
+                ld          i, level_text
+                ld          v1, 39
+                ld          v2, 26
+                ld          v3, 5
+
+                ; Display LEVEL.
+                drw         v1, v2, 5  ; L
+                add         v1, 4
+                add         i, v3
+                drw         v1, v2, 5  ; E
+                add         v1, 4
+                add         i, v3
+                drw         v1, v2, 5  ; V
+                add         v1, 4
+                add         i, v3
+                drw         v1, v2, 5  ; E
+                add         v1, 4
+                add         i, v3
+                drw         v1, v2, 5  ; L
+
+                ; Convert the level # to BCD.
+                ld          i, scratch
+                ld          b, v0
+                ld          v2, [i]
+
+                ; Display the level number.
+                ld          f, v1
+                ld          v0, 66
+                ld          v3, 26
+                drw         v0, v3, 5
+                ld          f, v2
+                add         v0, 5
+                drw         v0, v3, 5
+                ret
+
+
+;; Display the score.
+;;
+draw_score      ld          i, score_text
+                ld          v0, 39
+                ld          v1, 33
+                ld          v2, 5
+
+                ; Display SCORE.
+                drw         v0, v1, 5  ; S
+                add         v0, 4
+                add         i, v2
+                drw         v0, v1, 5  ; C
+                add         v0, 4
+                add         i, v2
+                drw         v0, v1, 5  ; O
+                add         v0, 4
+                add         i, v2
+                drw         v0, v1, 5  ; R
+                add         v0, 4
+                add         i, v2
+                drw         v0, v1, 5  ; E
+
+                ; Load the score.
+                ld          i, score
+                ld          v1, [i]
+                ld          v3, v0
+                ld          v4, v1
+
+                ; Convert the thousands and hundreds to BCD.
+                ld          i, scratch
+                ld          b, v4
+                ld          v2, [i]
+
+                ; Display the number.
+                ld          f, v1
+                ld          v0, 66
+                ld          v1, 33
+                drw         v0, v1, 5
+                ld          f, v2
+                add         v0, 5
+                drw         v0, v1, 5
+
+                ; Convert the tens and ones to BCD.
+                ld          i, scratch
+                ld          b, v3
+                ld          v2, [i]
+
+                ; Display the number.
+                ld          f, v1
+                ld          v0, 76
+                ld          v1, 33
+                drw         v0, v1, 5
+                ld          f, v2
+                add         v0, 5
+                drw         v0, v1, 5
+
+                ; Done
+                ret
 
 
 ;; Initialize the lander, pick a random position
@@ -306,7 +444,7 @@ apply_vy        add         thrust, vy
                 call        draw_lander
 
                 ; Reset the thrust vector.
-                ld          thrust, #80
+                add         thrust, #40
                 add         thrust, v0
                 ret
 
@@ -320,7 +458,7 @@ drop_lander     call        hide_lander
                 jp          land
 
                 ; Reset the thrust vector.
-                ld          thrust, #80
+                add         thrust, -64 ; #40
                 ret
 
                 ; The lander collided with the ground.
@@ -366,8 +504,13 @@ skip_neg        ld          v0, 8
                 ; Get more points from any left over fuel.
                 call        fuel_bonus
 
+                ; Write a byte indicating the lander has landed.
+                ld          v0, 1
+                ld          i, landed
+                ld          [i], v0
+
                 ; Reset and start the next level.
-                jp          init
+                ret
 
 
 ;; The lander didn't land on the platform or was going too fast.
@@ -421,7 +564,7 @@ tilt_left       ld          v0, #40
                 jp          crash
 
                 ; Reset the tilt vector.
-                ld          tilt, #80
+                add         tilt, #40
                 ret
 
                 ; Should the lander list to the right?
@@ -440,7 +583,7 @@ tilt_right      ld          v0, #c0
                 jp          crash
 
                 ; Reset the tilt vector.
-                ld          tilt, #80
+                add         tilt, -64 ; #40
                 ret
 
 
@@ -539,9 +682,9 @@ draw_thrust     ld          i, lander_thrust
                 ret
 
 
-;; Add some points to the score.
+;; Add 1 point to the score.
 ;;
-add_score       ld          i, score
+inc_score       ld          i, score
                 ld          v1, [i]
                 add         v0, 1
 
@@ -557,48 +700,40 @@ write_score     ld          [i], v1
 
 
 ;; Player completely ran out of points. Game over.
-game_over       ld          i, game_over_text
+game_over       cls
+
+                ; Get the text.
+                ld          i, game_over_text
                 ld          v2, 5
-                ld          v0, 0
-                ld          v1, 0
+                ld          v0, 45
+                ld          v1, 25
 
-                ; G
-                drw         v0, v1, 5
-                add         v0, 5
+                ; Display GAME OVER.
+                drw         v0, v1, 5 ; G
+                add         v0, 4
                 add         i, v2
-
-                ; A
-                drw         v0, v1, 5
-                add         v0, 5
+                drw         v0, v1, 5 ; A
+                add         v0, 4
                 add         i, v2
-
-                ; M
-                drw         v0, v1, 5
-                add         v0, 5
+                drw         v0, v1, 5 ; M
+                add         v0, 4
                 add         i, v2
-
-                ; E
-                drw         v0, v1, 5
-                add         v0, 7
+                drw         v0, v1, 5 ; E
+                add         v0, 6
                 add         i, v2
-
-                ; O
-                drw         v0, v1, 5
-                add         v0, 5
+                drw         v0, v1, 5 ; O
+                add         v0, 4
                 add         i, v2
-
-                ; V
-                drw         v0, v1, 5
-                add         v0, 5
+                drw         v0, v1, 5 ; V
+                add         v0, 4
                 add         i, v2
-
-                ; E
-                drw         v0, v1, 5
-                add         v0, 5
+                drw         v0, v1, 5 ; E
+                add         v0, 4
                 add         i, v2
+                drw         v0, v1, 5 ; R
 
-                ; R
-                drw         v0, v1, 5
+                ; Display the final score.
+                call        draw_score
                 exit
 
 
@@ -630,6 +765,7 @@ fill_tank       ld          i, fuel_text
 
                 ; Fill up the fuel bar.
                 ld          i, fuel_bar
+                ld          fuel, 64
 add_fuel        add         fuel, -1
                 drw         v0, fuel, 1
 
@@ -641,7 +777,7 @@ add_fuel        add         fuel, -1
 
 ;; Take the rest of the fuel and add it to the score.
 ;;
-fuel_bonus      se          fuel, 64
+fuel_bonus      sne         fuel, 64
                 ret
 
                 ; Erase the next level of fuel.
@@ -651,7 +787,7 @@ fuel_bonus      se          fuel, 64
 
                 ; Take away from the fuel and add score.
                 add         fuel, 1
-                call        add_score
+                call        inc_score
 
                 ; Keep going until fuel is gone.
                 jp          fuel_bonus
@@ -664,7 +800,17 @@ scratch         pad         16
 
 ;; The score is stored here in memory.
 ;;
-score           pad         2
+score           byte        0, 0
+
+
+;; This memory location contains the level number.
+;;
+level           byte        0
+
+
+;; This memory location is non-zero once the lander has landed!
+;;
+landed          byte        0
 
 
 ;; Contains the height of the ground every 8 pixels.
@@ -793,6 +939,40 @@ level_text      byte        %1.......
                 byte        %1.......
                 byte        %1.......
                 byte        %111.....
+
+
+;; Displayed each level.
+;;
+score_text      byte        %.11.....
+                byte        %1.......
+                byte        %.1......
+                byte        %..1.....
+                byte        %11......
+
+                byte        %.11.....
+                byte        %1.......
+                byte        %1.......
+                byte        %1.......
+                byte        %.11.....
+
+                byte        %.1......
+                byte        %1.1.....
+                byte        %1.1.....
+                byte        %1.1.....
+                byte        %.1......
+
+                byte        %11......
+                byte        %1.1.....
+                byte        %11......
+                byte        %1.1.....
+                byte        %1.1.....
+
+                byte        %111.....
+                byte        %1.......
+                byte        %11......
+                byte        %1.......
+                byte        %111.....
+
 
 ;; Ground bitmap. The Platform bitmap is offset by a byte so that when
 ;; the two overlap the platform will be solid.

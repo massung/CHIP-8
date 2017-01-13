@@ -56,6 +56,8 @@ func ProcessEvents() bool {
 					DebugLogHome()
 				case sdl.SCANCODE_END:
 					DebugLogEnd()
+				case sdl.SCANCODE_F2:
+					Load()
 				case sdl.SCANCODE_F3:
 					LoadDialog()
 				case sdl.SCANCODE_H:

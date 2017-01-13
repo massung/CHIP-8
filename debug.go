@@ -56,7 +56,8 @@ func DebugHelp() {
 	Log("[ / ]       | Deacrease/increase speed")
 	Log("HOME / END  | Scroll log")
 	Log("PGUP / PGDN | Scroll log")
-	Log("F3          | Load ROM / C8 assembler")
+	Log("F2          | Reload ROM / C8 assember")
+	Log("F3          | Open ROM / C8 assembler")
 	Log("F5          | Pause/break")
 	Log("F6          | Step")
 	Log("F7          | Step over")
@@ -119,10 +120,12 @@ func DebugRegisters(x, y int) {
 	DrawText(fmt.Sprintf("DT = #%02X", VM.GetDelayTimer()), x, y)
 	DrawText(fmt.Sprintf("ST = #%02X", VM.GetSoundTimer()), x, y+10)
 	DrawText(fmt.Sprintf(" I = #%04X", VM.I), x, y+30)
+	DrawText(fmt.Sprintf("PC = #%04X", VM.PC), x, y+50)
+	DrawText(fmt.Sprintf("SP = #%02X", VM.SP), x, y+60)
 
 	// show the HP-RPL user flags
 	for i := 0;i < 8;i++ {
-		DrawText(fmt.Sprintf("R%d = #%02X", i, VM.R[i]), x, y+50 + i*10)
+		DrawText(fmt.Sprintf("R%d = #%02X", i, VM.R[i]), x, y+80 + i*10)
 	}
 }
 

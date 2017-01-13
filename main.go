@@ -22,6 +22,10 @@ var (
 	///
 	Paused bool
 
+	/// The file being loaded.
+	///
+	File string
+
 	/// The CHIP-8 virtual machine.
 	///
 	VM *chip8.CHIP_8
@@ -47,7 +51,7 @@ func main() {
 	flag.Parse()
 
 	// get the file name of the ROM to load
-	file := flag.Arg(0)
+	File = flag.Arg(0)
 
 	// initialize SDL or panic
 	if err = sdl.Init(sdl.INIT_VIDEO | sdl.INIT_AUDIO); err != nil {
@@ -77,7 +81,7 @@ func main() {
 	Log("All rights reserved")
 
 	// create a new CHIP-8 virtual machine
-	Load(file)
+	Load()
 
 	// initialize sub-systems
 	InitScreen()
@@ -121,17 +125,20 @@ func LoadDialog() {
 
 	// try and load it
 	if file, err := dlg.Load(); err == nil {
-		Load(file)
+		File = file
+
+		// load the file
+		Load()
 	}
 }
 
-func Load(file string) {
+func Load() {
 	var err error
 
-	Logln("Loading", filepath.Base(file))
+	Logln("Loading", filepath.Base(File))
 
 	// create a new virtual machine
-	if VM, err = chip8.LoadFile(file); err != nil {
+	if VM, err = chip8.LoadFile(File); err != nil {
 		Log(err.Error())
 
 		// load a dummy ROM so something is there
