@@ -180,7 +180,7 @@ func LoadROM(program []byte, eti bool) (*CHIP_8, error) {
 	}
 
 	// copy the RCA 1802 512 byte ROM into the CHIP-8 followed by the program
-	copy(vm.ROM[:base], rca_1802[:])
+	copy(vm.ROM[:base], EmulatorROM[:])
 	copy(vm.ROM[base:], program[:])
 
 	// reset the VM memory
