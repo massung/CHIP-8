@@ -4,7 +4,7 @@
 
 CHIP-8 is an assembler, debugger, and emulator for the [COSMAC ELF][2] [CHIP-8][3] interpreter and its derivative: the Super CHIP-8, which ran on HP-48 calculators. Everything is emulated as well as possible: the video display refreshes at 60 Hz and sound is emulated as well.
 
-From the screenshot above you can see the disassembled program, register values, and a log which is used to show breakpoint information, memory dumps, and more.
+From the screen capture above you can see the disassembled program, register values, and a log which is used to show breakpoint information, memory dumps, and more.
 
 CHIP-8 is written in [Go](https://golang.org/) and uses [SDL](https://www.libsdl.org/) for its rendering, input handling, and audio. It should easily run on Windows, OS X, and Linux.
 
@@ -12,15 +12,16 @@ CHIP-8 is written in [Go](https://golang.org/) and uses [SDL](https://www.libsdl
 
 ```
 Usage: CHIP-8 [-a] [-elf] [-o <bin>] [-b] <ROM|C8>
-  -a         Assemble/load the ROM only; do not run it 
-  -eti       Assemble/load the ROM in ETI-660 mode
-  -o         Save the assembled ROM to <file>          
-  -b         Break on load
+  -a         assemble/load the ROM only; do not run it 
+  -eti       assemble/load the ROM in ETI-660 mode
+  -o         save the assembled ROM to <file>
+  -i         when saving the ROM, include the CDP1802 interpreter
+  -b         break on load
 ```
 
 Simply pass the filename of the ROM or a .C8 assembly source file to the executable and CHIP-8 will load it, assemble if required, and begin running it. If no ROM or C8 file is specified then a the usage is displayed (if `-a` is present) or an empty program is loaded and the UI is launched.
 
-_Note: The `-eti` flag should be rarely used. The ETI-660 loads CHIP-8 programs starting at address 0x600 instead of 0x200. Use this flag only if you intend to assemble and run a ROM on actual hardware or if you have a ROM assembled in ETI mode._
+_Note: The `-eti` flag should be rarely used. The ETI-660 loads CHIP-8 programs starting at address 0x600 instead of 0x200. Use this flag only if you intend to assemble and run a ROM on actual hardware or if you have a ROM assembled in ETI mode. This flag cannot be used with `-i`._
 
 Once the program is running, press `H` at any time to see the list of key commands available to you. But here's a quick breakdown:
 

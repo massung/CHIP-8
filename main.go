@@ -32,6 +32,10 @@ var (
 	///
 	ETI bool
 
+	/// When writing the ROM, include the CDP1802 interpreter.
+	///
+	IncludeInterpreter bool
+
 	/// True if pausing emulation (single stepping).
 	///
 	Paused bool
@@ -68,18 +72,28 @@ func main() {
 	flag.BoolVar(&AssembleOnly, "a", false, "Assemble the ROM only; do not run it.")
 	flag.BoolVar(&BreakOnLoad, "b", false, "Start ROM paused.")
 	flag.StringVar(&OutputFile, "o", "", "Write assembled ROM to file.")
+	flag.BoolVar(&IncludeInterpreter, "i", false, "When saving the ROM, include the CDP1802 interpreter.")
 	flag.BoolVar(&ETI, "eti", false, "Start ROM at 0x600 for ETI-660.")
 	flag.Parse()
 
 	// get the file name of the ROM to load
 	if File = flag.Arg(0); File == "" && AssembleOnly {
 		fmt.Println("Usage: CHIP-8 [-a] [-eti] [-o <bin>] [-b] <ROM|C8>")
-		fmt.Println("  -a         Assemble/load the ROM only; do not run it")
-		fmt.Println("  -eti       Assemble/load the ROM in ETI-660 mode")
-		fmt.Println("  -o         Save the assembled ROM to <file>")
-		fmt.Println("  -b         Break on load")
+		fmt.Println("  -a         assemble/load the ROM only; do not run it")
+		fmt.Println("  -eti       assemble/load the ROM in ETI-660 mode")
+		fmt.Println("  -o         save the assembled ROM to <file>")
+		fmt.Println("  -i         when saving the ROM, include the CDP1802 interpreter")
+		fmt.Println("  -b         immediately break on load")
 
 		// exit program
+		return
+	}
+
+	// note mutually exclusive flags
+	if ETI && IncludeInterpreter {
+		fmt.Println("Cannot include the CDP1802 interpreter with an ETI-660 ROM.")
+
+		// exit the program
 		return
 	}
 
@@ -227,7 +241,7 @@ func Save() error {
 	}
 
 	// write the ROM
-	err := VM.SaveROM(file)
+	err := VM.SaveROM(file, IncludeInterpreter)
 
 	if err == nil {
 		Logln("ROM saved to", filepath.Base(file))

@@ -230,8 +230,15 @@ func LoadFile(file string, eti bool) (*CHIP_8, error) {
 
 /// Write the ROM file to disk.
 ///
-func (vm *CHIP_8) SaveROM(file string) error {
-	return ioutil.WriteFile(file, vm.ROM[vm.Base:vm.Base+uint(vm.Size)], 666)
+func (vm *CHIP_8) SaveROM(file string, includeInterpreter bool) error {
+	bytes := vm.ROM[vm.Base:vm.Base+uint(vm.Size)]
+
+	// if including the interpreter, prepend it
+	if includeInterpreter {
+		bytes = append(Interpreter, bytes...)
+	}
+
+	return ioutil.WriteFile(file, bytes, 666)
 }
 
 /// Reset the CHIP-8 virtual machine memory.
