@@ -254,9 +254,8 @@ init_lander     rnd         x, #7f
 
 ;; Initialize the ground and pick a random platform.
 ;;
-init_ground     ld          v7, 64
+init_ground     ld          v7, 60
                 rnd         v0, 15
-                add         v0, 8
                 sub         v7, v0
 
                 ; X coordinate offset.
@@ -609,7 +608,6 @@ thrust_up       ld          v0, #C0
                 ret
 
                 ; Add to the VY vector, but not too much.
-                se          vy, -60
                 add         vy, -2
 
                 ; Show the thrust.
@@ -1070,17 +1068,14 @@ explosion       byte        %........
 ;; together in order to create some nice looking variations. Each
 ;; is 7-bytes for a feature (+1 padding for shifting).
 ;;
-features        byte        0,  -2,  -4,  -6,  -4,  -2,   0,   0
-                byte        0,   2,   4,   6,   4,   2,   0,   0
+features        byte        2,   4,   8,  12,   8,   4,   2,   0
+                byte       -2,  -4,  -8, -12,  -8,  -4,  -2,   0
 
-                ; little hill+valley and little valley+hill
-                byte        2,   6,   2,   0,  -2,  -6,  -2,   0
-                byte       -2,  -6,  -2,   0,   2,   6,   2,   0
+                byte        6,  10,   4,   0,  -4, -10,  -6,   0
+                byte       -6, -10,  -4,   0,   4,  10,   6,   0
 
-                ; tall hill + deep valley
-                byte        4,   8,  14,  14,  10,   8,   4,   0
-                byte       -4,  -8, -14, -14, -10,  -8,  -4,   0
+                byte        6,   12, 20,  20,  14,   8,   4,   0
+                byte       -6,  -12,-20, -20, -14,  -8,  -4,   0
 
-                ; cliffs
                 byte       -2,  -4,  -6, -10, -14, -12,  -8,   0
                 byte       -8, -12, -14, -10,  -6,  -4,  -2,   0
