@@ -216,24 +216,24 @@ draw_score      ld          i, score_text
 
 ;; Initialize the lander, pick a random position
 ;;
-init_lander     rnd         x, #7f
+init_lander     rnd         x, #3f
+                add         x, #20
 
                 ; Reset the thrust flag.
                 ld          v0, 0
                 ld          r, v0
 
-                ; Make sure it doesn't overlap the fuel.
-                ld          v0, 111
-                subn        v0, x
-                se          vf, 0
-                jp          init_lander
-
                 ; Setup the y position and initial thrust.
-                ld          y, 1
+                rnd         y, 7
 
-                ; Clear the direction of travel.
-                ld          vx, 0
-                ld          vy, 0
+                ; Start with an initial falling velocity.
+                ld          vy, 8
+
+                ; Pick a random, lateral velocity.
+                rnd         vx, #1f
+                rnd         v0, #f
+                add         vx, v0
+                add         vx, -23
 
                 ; Reset the thrust/tilt vectors.
                 ld          thrust, #80
@@ -373,7 +373,7 @@ init_platform   rnd         v1, 15
 
                 ; Draw the platform at the proper elevation.
                 ld          i, platform
-                drw         plat_x, v0, 2
+                drw         plat_x, v0, 1
                 ret
 
 
