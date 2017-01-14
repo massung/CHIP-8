@@ -254,26 +254,37 @@ init_lander     rnd         x, #7f
 
 ;; Initialize the ground and pick a random platform.
 ;;
-init_ground     ld          v7, 60
-                rnd         v0, 15
-                sub         v7, v0
+init_ground     ld          v8, 0
 
-                ; X coordinate offset.
-                ld          v8, 0
+                ; Pick a random, initial elevation. (rnd(22)+42)
+                rnd         v7, 15
+                rnd         v0, 7
+                add         v7, v0
+                add         v7, 42
 
-                ; There are 2, 7-wide features.
+                ; Terrain is broken up into 3, 5-byte "features." The
+                ; first 4 features go up and the next 4 go down. A
+                ; random (0-3) feature is chosen, and if the current
+                ; elevation is too high already then add 4 to shift into
+                ; the downward elevation set.
+                ;
                 call        pick_feature
                 call        pick_feature
+                call        pick_feature
 
-                ; Save the final elevation and draw it.
-                ld          i, elevation
-                add         i, v8
-                ld          v0, v7
-                ld          [i], v0
-                jp          draw_elevation
+                ; Done.
+                ret
 
                 ; Pick a random feature.
-pick_feature    rnd         v0, 7
+pick_feature    rnd         v0, 3
+
+                ; Shift into the downward feature set if elevation is high.
+                ld          v1, 48
+                sub         v1, v7
+                se          vf, 1
+                add         v0, 4
+
+                ; Multiply by 8 to get to the right feature.
                 shl         v0
                 shl         v0
                 shl         v0
@@ -289,13 +300,14 @@ pick_feature    rnd         v0, 7
                 add         v2, v7
                 add         v3, v7
                 add         v4, v7
-                add         v5, v7
-                add         v6, v7
+
+                ; Update the elevation.
+                ld          v7, v4
 
                 ; Write the elevations to memory.
                 ld          i, elevation
                 add         i, v8
-                ld          [i], v6
+                ld          [i], v4
 
                 ; Draw each elevation.
                 call        draw_elevation
@@ -306,10 +318,6 @@ pick_feature    rnd         v0, 7
                 ld          v0, v3
                 call        draw_elevation
                 ld          v0, v4
-                call        draw_elevation
-                ld          v0, v5
-                call        draw_elevation
-                ld          v0, v6
                 call        draw_elevation
                 ret
 
@@ -1064,18 +1072,15 @@ explosion       byte        %........
                 byte        %........
                 byte        %1.1.1...
 
-;; There are 8 possible terrain "features" that can be combined
-;; together in order to create some nice looking variations. Each
-;; is 7-bytes for a feature (+1 padding for shifting).
+;; There are 8 possible terrain "features", each is 5-bytes long with
+;; 3 padding bytes for easy shifting.
 ;;
-features        byte        2,   4,   8,  12,   8,   4,   2,   0
-                byte       -2,  -4,  -8, -12,  -8,  -4,  -2,   0
+features        byte        8,  16,  22,  28,  34,   0, 0, 0
+                byte        8,   4,   4,  12,  18,   0, 0, 0
+                byte        6,  12,  18,  18,  24,   0, 0, 0
+                byte       -4,   2,   8,  14,  20,   0, 0, 0
 
-                byte        6,  10,   4,   0,  -4, -10,  -6,   0
-                byte       -6, -10,  -4,   0,   4,  10,   6,   0
-
-                byte        6,   12, 20,  20,  14,   8,   4,   0
-                byte       -6,  -12,-20, -20, -14,  -8,  -4,   0
-
-                byte       -2,  -4,  -6, -10, -14, -12,  -8,   0
-                byte       -8, -12, -14, -10,  -6,  -4,  -2,   0
+                byte       -8, -16, -22, -28, -34,   0, 0, 0
+                byte       -8,  -4,  -4, -12, -18,   0, 0, 0
+                byte       -6, -12, -18, -18, -24,   0, 0, 0
+                byte       -4,  -2,  -8, -14, -20,   0, 0, 0

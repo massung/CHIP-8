@@ -69,7 +69,7 @@ func DebugHelp() {
 /// the CHIP-8 program counter.
 ///
 func DebugAssembly(x, y int) {
-	if Address <= VM.PC-38 || Address >= VM.PC-2 || Address ^ VM.PC&1 == 1 {
+	if Address <= VM.PC-38 || Address >= VM.PC-2 || (Address&1) != (VM.PC&1) {
 		Address = VM.PC-2
 	}
 
