@@ -45,9 +45,9 @@ type CHIP_8 struct {
 	///
 	PC uint
 
-	/// If running in COSMAC ELF mode then the start address is 0x600
-	/// instead of 0x200 (this is only necessary if you intend on saving
-	/// the ROM to disk and loading on COSMAC ELF hardware!).
+	/// If running in ETI-660 mode then the start address is 0x600 instead
+	/// of 0x200 (this is only necessary if you intend on saving the ROM
+	/// to disk and loading on ETI-660 hardware!).
 	///
 	Base uint
 
@@ -158,11 +158,11 @@ func (call SysCall) Error() string {
 
 /// Load a ROM from a byte array and return a new CHIP-8 virtual machine.
 ///
-func LoadROM(program []byte, elf bool) (*CHIP_8, error) {
+func LoadROM(program []byte, eti bool) (*CHIP_8, error) {
 	base := 0x200
 
-	// ELF roms begin at 0x600
-	if elf {
+	// ETI-660 roms begin at 0x600
+	if eti {
 		base = 0x600
 	}
 
@@ -191,8 +191,8 @@ func LoadROM(program []byte, elf bool) (*CHIP_8, error) {
 
 /// Load a compiled assembly and return a new CHIP-8 virtual machine.
 ///
-func LoadAssembly(asm *Assembly, elf bool) (*CHIP_8, error) {
-	if vm, err := LoadROM(asm.ROM, elf); err != nil {
+func LoadAssembly(asm *Assembly, eti bool) (*CHIP_8, error) {
+	if vm, err := LoadROM(asm.ROM, eti); err != nil {
 		return nil, err
 	} else {
 		// set all the breakpoints found in the assembly
@@ -206,7 +206,7 @@ func LoadAssembly(asm *Assembly, elf bool) (*CHIP_8, error) {
 
 /// Load a ROM file and return a new CHIP-8 virtual machine.
 ///
-func LoadFile(file string, elf bool) (*CHIP_8, error) {
+func LoadFile(file string, eti bool) (*CHIP_8, error) {
 	if program, err := ioutil.ReadFile(file); err != nil {
 		return nil, err
 	} else {
@@ -216,14 +216,14 @@ func LoadFile(file string, elf bool) (*CHIP_8, error) {
 			}
 
 			// file is a binary rom, load that
-			return LoadROM(program, elf)
+			return LoadROM(program, eti)
 		}
 
 		// a text file that needs assembled
-		if asm, err := Assemble(program, elf); err != nil {
+		if asm, err := Assemble(program, eti); err != nil {
 			return nil, err
 		} else {
-			return LoadAssembly(asm, elf)
+			return LoadAssembly(asm, eti)
 		}
 	}
 }

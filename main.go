@@ -22,9 +22,9 @@ var (
 	///
 	BreakOnLoad bool
 
-	/// True if assembling for an ELF (ROM starts at 0x600 instead of 0x200).
+	/// True if assembling for an ETI-660 (ROM starts at 0x600 instead of 0x200).
 	///
-	ElfBinary bool
+	ETI bool
 
 	/// True if pausing emulation (single stepping).
 	///
@@ -62,14 +62,14 @@ func main() {
 	flag.BoolVar(&AssembleOnly, "a", false, "Assemble the ROM only; do not run it.")
 	flag.BoolVar(&BreakOnLoad, "b", false, "Start ROM paused.")
 	flag.StringVar(&OutputFile, "o", "", "Write assembled ROM to file.")
-	flag.BoolVar(&ElfBinary, "elf", false, "Start ROM at 0x600 for COSMAC ELF.")
+	flag.BoolVar(&ETI, "eti", false, "Start ROM at 0x600 for ETI-660.")
 	flag.Parse()
 
 	// get the file name of the ROM to load
 	if File = flag.Arg(0); File == "" && AssembleOnly {
-		fmt.Println("Usage: CHIP-8 [-a] [-elf] [-o <bin>] [-b] <ROM|C8>")
+		fmt.Println("Usage: CHIP-8 [-a] [-eti] [-o <bin>] [-b] <ROM|C8>")
 		fmt.Println("  -a         Assemble/load the ROM only; do not run it")
-		fmt.Println("  -elf       Assemble/load the ROM in COSMAC ELF mode")
+		fmt.Println("  -eti       Assemble/load the ROM in ETI-660 mode")
 		fmt.Println("  -o         Save the assembled ROM to <file>")
 		fmt.Println("  -b         Break on load")
 
@@ -177,7 +177,7 @@ func Load() error {
 	} else {
 		Logln("Loading", filepath.Base(File))
 
-		if VM, err = chip8.LoadFile(File, ElfBinary); err != nil {
+		if VM, err = chip8.LoadFile(File, ETI); err != nil {
 			Log(err.Error())
 
 			// load a dummy ROM so something is there

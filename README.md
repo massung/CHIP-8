@@ -13,14 +13,14 @@ CHIP-8 is written in [Go](https://golang.org/) and uses [SDL](https://www.libsdl
 ```
 Usage: CHIP-8 [-a] [-elf] [-o <bin>] [-b] <ROM|C8>
   -a         Assemble/load the ROM only; do not run it 
-  -elf       Assemble/load the ROM in COSMAC ELF mode  
+  -eti       Assemble/load the ROM in ETI-660 mode
   -o         Save the assembled ROM to <file>          
   -b         Break on load
 ```
 
 Simply pass the filename of the ROM or a .C8 assembly source file to the executable and CHIP-8 will load it, assemble if required, and begin running it. If no ROM or C8 file is specified then a the usage is displayed (if `-a` is present) or an empty program is loaded and the UI is launched.
 
-_Note: The `-elf` flag should be rarely used. The COSMAC ELF loads CHIP-8 programs starting at address 0x600 instead of 0x200. Use this flag only if you intend to assemble and run a ROM on actual hardware or if you have a ROM assembled in ELF mode._
+_Note: The `-eti` flag should be rarely used. The ETI-660 loads CHIP-8 programs starting at address 0x600 instead of 0x200. Use this flag only if you intend to assemble and run a ROM on actual hardware or if you have a ROM assembled in ETI mode._
 
 Once the program is running, press `H` at any time to see the list of key commands available to you. But here's a quick breakdown:
 

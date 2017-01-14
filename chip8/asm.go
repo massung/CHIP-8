@@ -28,14 +28,14 @@ type Assembly struct {
 
 /// Assemble an input CHIP-8 source code file.
 ///
-func Assemble(program []byte, elf bool) (out *Assembly, err error) {
+func Assemble(program []byte, eti bool) (out *Assembly, err error) {
 	var line int
 
 	// base address for program
 	base := 0x200
 
-	// ELF binaries are loaded to 0x600
-	if elf {
+	// ETI-660 binaries are loaded to 0x600
+	if eti {
 		base = 0x600
 	}
 
