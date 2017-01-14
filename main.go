@@ -66,7 +66,7 @@ func main() {
 	flag.Parse()
 
 	// get the file name of the ROM to load
-	if File = flag.Arg(0); File == "" {
+	if File = flag.Arg(0); File == "" && AssembleOnly {
 		fmt.Println("Usage: CHIP-8 [-a] [-elf] [-o <bin>] [-b] <ROM|C8>")
 		fmt.Println("  -a         Assemble/load the ROM only; do not run it")
 		fmt.Println("  -elf       Assemble/load the ROM in COSMAC ELF mode")
@@ -169,22 +169,28 @@ func LoadDialog() {
 func Load() error {
 	var err error
 
-	Logln("Loading", filepath.Base(File))
+	if File == "" {
+		Logln("No ROM/C8 specified; loading empty program.")
 
-	// create a new virtual machine
-	if VM, err = chip8.LoadFile(File, ElfBinary); err != nil {
-		Log(err.Error())
-
-		// load a dummy ROM so something is there
-		VM, _ = chip8.LoadROM(chip8.Dummy, ElfBinary)
+		// start the dummy program
+		VM, _ = chip8.LoadROM(chip8.Dummy, false)
 	} else {
-		Log(fmt.Sprint(VM.Size), "bytes")
+		Logln("Loading", filepath.Base(File))
 
-		// should the VM start paused?
-		Paused = BreakOnLoad
+		if VM, err = chip8.LoadFile(File, ElfBinary); err != nil {
+			Log(err.Error())
 
-		// clear flag so it doesn't happen on reset
-		BreakOnLoad = false
+			// load a dummy ROM so something is there
+			VM, _ = chip8.LoadROM(chip8.Dummy, false)
+		} else {
+			Log(fmt.Sprint(VM.Size), "bytes")
+
+			// should the VM start paused?
+			Paused = BreakOnLoad
+
+			// clear flag so it doesn't happen on reset
+			BreakOnLoad = false
+		}
 	}
 
 	return err
