@@ -1,8 +1,6 @@
 package chip8
 
 import (
-	"bytes"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -46,6 +44,12 @@ type CHIP_8 struct {
 	/// PC is the program counter. All programs begin at 0x200.
 	///
 	PC uint
+
+	/// If running in COSMAC ELF mode then the start address is 0x600
+	/// instead of 0x200 (this is only necessary if you intend on saving
+	/// the ROM to disk and loading on COSMAC ELF hardware!).
+	///
+	Base uint
 
 	/// The size of the ROM.
 	///
@@ -154,8 +158,16 @@ func (call SysCall) Error() string {
 
 /// Load a ROM from a byte array and return a new CHIP-8 virtual machine.
 ///
-func LoadROM(program []byte) (*CHIP_8, error) {
-	if len(program) > 0x1000 - 0x200 {
+func LoadROM(program []byte, elf bool) (*CHIP_8, error) {
+	base := 0x200
+
+	// ELF roms begin at 0x600
+	if elf {
+		base = 0x600
+	}
+
+	// make sure the program fits within 4k
+	if len(program) > 0x1000 - base {
 		return nil, errors.New("Program too large to fit in memory!")
 	}
 
@@ -163,12 +175,13 @@ func LoadROM(program []byte) (*CHIP_8, error) {
 	vm := &CHIP_8{
 		Size: len(program),
 		Breakpoints: make(map[int]Breakpoint),
+		Base: uint(base),
 		Speed: 700,
 	}
 
 	// copy the RCA 1802 512 byte ROM into the CHIP-8 followed by the program
-	copy(vm.ROM[:0x200], rca_1802[:])
-	copy(vm.ROM[0x200:], program[:])
+	copy(vm.ROM[:base], rca_1802[:])
+	copy(vm.ROM[base:], program[:])
 
 	// reset the VM memory
 	vm.Reset()
@@ -178,8 +191,8 @@ func LoadROM(program []byte) (*CHIP_8, error) {
 
 /// Load a compiled assembly and return a new CHIP-8 virtual machine.
 ///
-func LoadAssembly(asm *Assembly) (*CHIP_8, error) {
-	if vm, err := LoadROM(asm.ROM); err != nil {
+func LoadAssembly(asm *Assembly, elf bool) (*CHIP_8, error) {
+	if vm, err := LoadROM(asm.ROM, elf); err != nil {
 		return nil, err
 	} else {
 		// set all the breakpoints found in the assembly
@@ -193,7 +206,7 @@ func LoadAssembly(asm *Assembly) (*CHIP_8, error) {
 
 /// Load a ROM file and return a new CHIP-8 virtual machine.
 ///
-func LoadFile(file string) (*CHIP_8, error) {
+func LoadFile(file string, elf bool) (*CHIP_8, error) {
 	if program, err := ioutil.ReadFile(file); err != nil {
 		return nil, err
 	} else {
@@ -203,97 +216,22 @@ func LoadFile(file string) (*CHIP_8, error) {
 			}
 
 			// file is a binary rom, load that
-			return LoadROM(program)
+			return LoadROM(program, elf)
 		}
 
 		// a text file that needs assembled
-		if asm, err := Assemble(program); err != nil {
+		if asm, err := Assemble(program, elf); err != nil {
 			return nil, err
 		} else {
-			return LoadAssembly(asm)
+			return LoadAssembly(asm, elf)
 		}
 	}
 }
 
-/// Restore the current state of the CHIP-8 virtual machine.
+/// Write the ROM file to disk.
 ///
-func LoadImage(file string) (*CHIP_8, error) {
-	image, err := ioutil.ReadFile(file)
-	if err != nil {
-		return nil, err
-	}
-
-	// create a new virtual machine
-	vm := &CHIP_8{
-		Breakpoints: make(map[int]Breakpoint),
-		Speed: 700,
-	}
-
-	// create a byte reader
-	buf := bytes.NewReader(image)
-
-	// build the VM from the image
-	binary.Read(buf, binary.LittleEndian, &vm.Size)
-	binary.Read(buf, binary.LittleEndian, &vm.Pitch)
-	binary.Read(buf, binary.LittleEndian, vm.Stack)
-	binary.Read(buf, binary.LittleEndian, &vm.SP)
-	binary.Read(buf, binary.LittleEndian, &vm.PC)
-	binary.Read(buf, binary.LittleEndian, &vm.I)
-	binary.Read(buf, binary.LittleEndian, &vm.V)
-	binary.Read(buf, binary.LittleEndian, &vm.R)
-	binary.Read(buf, binary.LittleEndian, &vm.Clock)
-	binary.Read(buf, binary.LittleEndian, &vm.DT)
-	binary.Read(buf, binary.LittleEndian, &vm.ST)
-
-	// get the current time; it will be the new base
-	now := time.Now().UnixNano()
-
-	// offset the delay timer and sound timer accordingly
-	vm.DT = now + (vm.DT-vm.Clock)
-	vm.ST = now + (vm.ST-vm.Clock)
-
-	// fix the time to match
-	vm.Clock = now
-
-	// only load as much video memory as is present
-	w, h := vm.GetResolution()
-
-	// read the ROM into the virtual machine followed by all of memory
-	binary.Read(buf, binary.LittleEndian, vm.ROM[:0x200+vm.Size])
-	binary.Read(buf, binary.LittleEndian, vm.Memory)
-	binary.Read(buf, binary.LittleEndian, vm.Video[:(w*h)>>3])
-
-	return vm, nil
-}
-
-/// Save the current state of the CHIP-8 virtual machine.
-///
-func (vm *CHIP_8) SaveImage(file string) error {
-	buf := new(bytes.Buffer)
-
-	// only save as much video memory as needed
-	w, h := vm.GetResolution()
-
-	println(vm.Size)
-
-	// construct the final binary
-	binary.Write(buf, binary.LittleEndian, vm.Size)
-	binary.Write(buf, binary.LittleEndian, vm.Pitch)
-	binary.Write(buf, binary.LittleEndian, vm.Stack)
-	binary.Write(buf, binary.LittleEndian, vm.SP)
-	binary.Write(buf, binary.LittleEndian, vm.PC)
-	binary.Write(buf, binary.LittleEndian, vm.I)
-	binary.Write(buf, binary.LittleEndian, vm.V)
-	binary.Write(buf, binary.LittleEndian, vm.R)
-	binary.Write(buf, binary.LittleEndian, vm.Clock)
-	binary.Write(buf, binary.LittleEndian, vm.DT)
-	binary.Write(buf, binary.LittleEndian, vm.ST)
-	binary.Write(buf, binary.LittleEndian, vm.ROM[:0x200+vm.Size])
-	binary.Write(buf, binary.LittleEndian, vm.Memory)
-	binary.Write(buf, binary.LittleEndian, vm.Video[:(w*h)>>3])
-
-	// write the file to disk
-	return ioutil.WriteFile(file, buf.Bytes(), 666)
+func (vm *CHIP_8) SaveROM(file string) error {
+	return ioutil.WriteFile(file, vm.ROM[vm.Base:vm.Base+uint(vm.Size)], 666)
 }
 
 /// Reset the CHIP-8 virtual machine memory.
@@ -308,7 +246,7 @@ func (vm *CHIP_8) Reset() {
 	vm.Keys = [16]bool{}
 
 	// reset program counter and stack pointer
-	vm.PC = 0x200
+	vm.PC = vm.Base
 	vm.SP = 0
 
 	// reset Address register

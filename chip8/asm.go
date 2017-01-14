@@ -28,12 +28,20 @@ type Assembly struct {
 
 /// Assemble an input CHIP-8 source code file.
 ///
-func Assemble(program []byte) (out *Assembly, err error) {
+func Assemble(program []byte, elf bool) (out *Assembly, err error) {
 	var line int
+
+	// base address for program
+	base := 0x200
+
+	// ELF binaries are loaded to 0x600
+	if elf {
+		base = 0x600
+	}
 
 	// create an empty, return assembly
 	out = &Assembly{
-		ROM: make([]byte, 0x200, 0x1000),
+		ROM: make([]byte, base, 0x1000),
 		Breakpoints: make([]Breakpoint, 0, 10),
 		Labels: make(map[string]token),
 		Unresolved: make(map[int]string),
@@ -106,7 +114,7 @@ func Assemble(program []byte) (out *Assembly, err error) {
 	}
 
 	// drop the first 512 bytes from the rom
-	out.ROM = out.ROM[0x200:]
+	out.ROM = out.ROM[base:]
 
 	// done
 	return

@@ -24,26 +24,39 @@ var (
 /// Output a new line to the log.
 ///
 func Log(s ...string) {
-	scroll := LogPos == len(LogBuf)
+	t := strings.Join(s, " ")
 
-	// add the new line
-	LogBuf = append(LogBuf, strings.Join(s, " "))
+	if AssembleOnly {
+		fmt.Println(t)
+	} else {
+		scroll := LogPos == len(LogBuf)
 
-	if scroll {
-		LogPos = len(LogBuf)
+		// add the new line
+		LogBuf = append(LogBuf, t)
+
+		if scroll {
+			LogPos = len(LogBuf)
+		}
 	}
 }
 
 /// Outline a new line to the log, with a newline before it.
 ///
 func Logln(s ...string) {
-	scroll := LogPos == len(LogBuf)
+	t := strings.Join(s, " ")
 
-	// append the lines
-	LogBuf = append(LogBuf, "", strings.Join(s, " "))
+	if AssembleOnly {
+		fmt.Println()
+		fmt.Println(t)
+	} else {
+		scroll := LogPos == len(LogBuf)
 
-	if scroll {
-		LogPos = len(LogBuf)
+		// append the lines
+		LogBuf = append(LogBuf, "", t)
+
+		if scroll {
+			LogPos = len(LogBuf)
+		}
 	}
 }
 
@@ -58,6 +71,7 @@ func DebugHelp() {
 	Log("PGUP / PGDN | Scroll log")
 	Log("F2          | Reload ROM / C8 assember")
 	Log("F3          | Open ROM / C8 assembler")
+	Log("F4          | Save ROM")
 	Log("F5          | Pause/break")
 	Log("F6          | Step")
 	Log("F7          | Step over")

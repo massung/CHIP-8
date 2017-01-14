@@ -11,10 +11,16 @@ CHIP-8 is written in [Go](https://golang.org/) and uses [SDL](https://www.libsdl
 ## Usage
 
 ```
-CHIP-8 [-b] [-o <file>] [ROM|C8]
+Usage: CHIP-8 [-a] [-elf] [-o <bin>] [-b] <ROM|C8>
+  -a         Assemble/load the ROM only; do not run it 
+  -elf       Assemble/load the ROM in COSMAC ELF mode  
+  -o         Save the assembled ROM to <file>          
+  -b         Break on load
 ```
 
 Simply pass the filename of the ROM or a .C8 assembly source file to the executable and CHIP-8 will load it, assemble if required, and begin running it. If no ROM or C8 file is specified then a default ROM ([Pong](https://en.wikipedia.org/wiki/Pong)) is loaded. 
+
+_Note: The `-elf` flag should be rarely used. The COSMAC ELF loads CHIP-8 programs starting at address 0x600 instead of 0x200. Use this flag only if you intend to assemble and run a ROM on actual hardware or if you have a ROM assembled in ELF mode._
 
 Once the program is running, press `H` at any time to see the list of key commands available to you. But here's a quick breakdown:
 
@@ -26,6 +32,7 @@ Once the program is running, press `H` at any time to see the list of key comman
 | `]`               | Increase emulation speed
 | `F2`              | Reload ROM or C8 assembler file
 | `F3`              | Open ROM or C8 assembler file
+| `F4`              | Save ROM
 
 | Debugging         | Description
 |:------------------|:-----------------

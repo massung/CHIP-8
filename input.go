@@ -60,6 +60,8 @@ func ProcessEvents() bool {
 					Load()
 				case sdl.SCANCODE_F3:
 					LoadDialog()
+				case sdl.SCANCODE_F4:
+					Save()
 				case sdl.SCANCODE_H:
 					DebugHelp()
 				case sdl.SCANCODE_LEFTBRACKET:
