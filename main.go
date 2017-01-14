@@ -13,6 +13,12 @@ import (
 	"github.com/veandco/go-sdl2/sdl"
 )
 
+const (
+	VERSION_MAJOR = 1
+	VERSION_MINOR = 0
+	VERSION_PATCH = 0
+)
+
 var (
 	/// True if CHIP-8 should only assemble the ROM and not run it.
 	///
@@ -105,6 +111,9 @@ func main() {
 	// show copyright information
 	Log("CHIP-8, Copyright 2017 by Jeffrey Massung")
 	Log("All rights reserved")
+
+	// show the current version number
+	Logln("V", fmt.Sprintf("%d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH))
 
 	// create a new CHIP-8 virtual machine, which loads/assembles the rom
 	if err := Load(); err != nil {

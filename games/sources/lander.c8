@@ -218,22 +218,18 @@ draw_score      ld          i, score_text
 ;;
 init_lander     rnd         x, #3f
                 add         x, #20
+                ld          y, 0
 
                 ; Reset the thrust flag.
                 ld          v0, 0
                 ld          r, v0
-
-                ; Setup the y position and initial thrust.
-                rnd         y, 7
 
                 ; Start with an initial falling velocity.
                 ld          vy, 8
 
                 ; Pick a random, lateral velocity.
                 rnd         vx, #1f
-                rnd         v0, #f
-                add         vx, v0
-                add         vx, -23
+                add         vx, -8
 
                 ; Reset the thrust/tilt vectors.
                 ld          thrust, #80

@@ -45,9 +45,9 @@ type CHIP_8 struct {
 	///
 	PC uint
 
-	/// If running in ETI-660 mode then the start address is 0x600 instead
-	/// of 0x200 (this is only necessary if you intend on saving the ROM
-	/// to disk and loading on ETI-660 hardware!).
+	/// Base is the starting address of the program in hardware. This is
+	/// 0x200 for all ROMs except those running on the ETI-660, which start
+	/// at 0x600.
 	///
 	Base uint
 
