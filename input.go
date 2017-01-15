@@ -40,7 +40,10 @@ func ProcessEvents() bool {
 			} else {
 				switch ev.Keysym.Scancode {
 				case sdl.SCANCODE_ESCAPE:
-					return false
+					File = ""
+
+					// go back to the boot program
+					Load()
 				case sdl.SCANCODE_BACKSPACE:
 					VM.Reset()
 
