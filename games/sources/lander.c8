@@ -64,7 +64,7 @@ init            cls
                 call        draw_score
 
                 ; Wait for a key press or a few seconds.
-                call        wait
+                ld          v0, k
                 cls
 
                 ; Initialize all major pieces.
@@ -88,23 +88,6 @@ loop            call        input
 
                 ; Do it all over again...
                 jp          loop
-
-
-;; Wait for a key press or a few seconds.
-;;
-wait            ld          v0, 180
-                ld          dt, v0
-
-                ; Was key A pressed (Z)?
-cont            ld          v0, #a
-                sknp        v0
-                ret
-
-                ; Has 3 seconds elapsed?
-                ld          v0, dt
-                se          v0, 0
-                jp          cont
-                ret
 
 
 ;; Advance the level, display it, clear variables.
@@ -342,27 +325,49 @@ draw_ground     drw         v9, va, 14
                 ret
 
 
-;; Pick a random place for the landing platform. This will always be
-;; on an 8-bit boundary that matches up with an elevation.
+;; Find the lowest spot (that's visible) and use it for the target.
 ;;
-init_platform   rnd         v1, 15
-                sne         v1, 15
-                jp          init_platform
+init_platform   ld          v2, 0       ; lowest
+                ld          v1, 0       ; current x
 
-                ; Load the elevation at that point.
-                ld          i, elevation
+                ; Load the terrain elevation at v1.
+next_x          ld          i, elevation
                 add         i, v1
                 ld          v0, [i]
 
-                ; If too low (>= 64) then try again.
-                ld          v2, #c0
-                ld          v3, v0
-                and         v3, v2
-                se          v3, 0
-                jp          init_platform
+                ; Is it too low?
+                ld          v3, 64
+                subn        v3, v0
+                se          vf, 0
+                jp          not_lower
 
-                ; Set the platform X position (v1 * 3)
+                ; Pick a random number so it's not ALWAYS the lowest.
+                rnd         v3, #f
+                add         v0, v3
+
+                ; Is it lower than our current lowest (v2)?
+                ld          v3, v2
+                sub         v3, v0
+
+                ; If so, update platform position
+                se          vf, 0
+                jp          not_lower
+
+                ; Update lowest and x.
                 ld          plat_x, v1
+                ld          v2, v0
+
+                ; Next.
+not_lower       add         v1, 1
+                se          v1, #10
+                jp          next_x
+
+                ; Reload the height.
+                ld          i, elevation
+                add         i, plat_x
+                ld          v0, [i]
+
+                ; Set the platform X position (plat_x * 3)
                 shl         plat_x
                 shl         plat_x
                 shl         plat_x

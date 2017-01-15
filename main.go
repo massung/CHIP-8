@@ -20,35 +20,38 @@ const (
 )
 
 var (
-	/// True if CHIP-8 should only assemble the ROM and not run it.
+	/// AssembleOnly is true if CHIP-8 should only assemble the ROM and
+	/// not run it.
 	///
 	AssembleOnly bool
 
-	/// True if the ROM should load paused.
+	/// BreakOnLoad is true if the ROM should load paused.
 	///
 	BreakOnLoad bool
 
-	/// True if assembling for an ETI-660 (ROM starts at 0x600 instead of 0x200).
+	/// ETI is true if assembling for an ETI-660 (ROM starts at 0x600
+	/// instead of 0x200).
 	///
 	ETI bool
 
-	/// When writing the ROM, include the CDP1802 interpreter.
+	/// IncludeInterpreter is true when writing the ROM, include the CDP1802
+	/// interpreter.
 	///
 	IncludeInterpreter bool
 
-	/// True if pausing emulation (single stepping).
+	/// Paused is true if emulation is paused (single stepping).
 	///
 	Paused bool
 
-	/// The file being loaded.
+	/// File is the file that will be/was loaded.
 	///
 	File string
 
-	/// Write the final ROM to an output file.
+	/// OutputFile specifies the location on disk to write the final ROM to.
 	///
 	OutputFile string
 
-	/// The CHIP-8 virtual machine.
+	/// VM is the CHIP-8 virtual machine.
 	///
 	VM *chip8.CHIP_8
 
