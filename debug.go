@@ -24,39 +24,26 @@ var (
 /// Output a new line to the log.
 ///
 func Log(s ...string) {
-	t := strings.Join(s, " ")
+	scroll := LogPos == len(LogBuf)
 
-	if AssembleOnly {
-		fmt.Println(t)
-	} else {
-		scroll := LogPos == len(LogBuf)
+	// add the new line
+	LogBuf = append(LogBuf, strings.Join(s, " "))
 
-		// add the new line
-		LogBuf = append(LogBuf, t)
-
-		if scroll {
-			LogPos = len(LogBuf)
-		}
+	if scroll {
+		LogPos = len(LogBuf)
 	}
 }
 
 /// Outline a new line to the log, with a newline before it.
 ///
 func Logln(s ...string) {
-	t := strings.Join(s, " ")
+	scroll := LogPos == len(LogBuf)
 
-	if AssembleOnly {
-		fmt.Println()
-		fmt.Println(t)
-	} else {
-		scroll := LogPos == len(LogBuf)
+	// append the lines
+	LogBuf = append(LogBuf, "", strings.Join(s, " "))
 
-		// append the lines
-		LogBuf = append(LogBuf, "", t)
-
-		if scroll {
-			LogPos = len(LogBuf)
-		}
+	if scroll {
+		LogPos = len(LogBuf)
 	}
 }
 

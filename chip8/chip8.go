@@ -941,7 +941,7 @@ func (vm *CHIP_8) subYX(x, y uint) {
 /// Load a random number & n into vx.
 ///
 func (vm *CHIP_8) loadRandom(x uint, b byte) {
-	vm.V[x] = byte(rand.Int31() & int32(b))
+	vm.V[x] = byte(rand.Intn(256) & int(b))
 }
 
 /// Draw a sprite in memory to video at x,y with a height of n.

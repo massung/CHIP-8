@@ -5,6 +5,8 @@ import (
 )
 
 var (
+	Window *sdl.Window
+	Renderer *sdl.Renderer
 	Screen *sdl.Texture
 )
 

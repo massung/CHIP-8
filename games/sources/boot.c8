@@ -40,13 +40,6 @@
             drw         v0, v1, 7
             add         i, v2
 
-
-            ; draw the walls
-            ld          v0, 0
-            ld          v1, 0
-            ld          v2, #1f
-            ld          v3, #3f
-
             ; move a ball around the board
             ld          i, ball
 
@@ -54,19 +47,18 @@
             rnd         v0, #3f
             rnd         v1, #1f
 
-            ; v2,v3 is dx, dy
+            ; initial direction of travel
             ld          v2, 1
             ld          v3, 1
 
             ; draw the initial ball
             drw         v0, v1, 1
 
-loop
-            ld          v4, 15
+            ; update 30 times per second
+loop        ld          v4, 2
             ld          dt, v4
-wait
-            ld          v4, dt
-            sne         v4, 0
+wait        ld          v4, dt
+            se          v4, 0
             jp          wait
 
             ; erase the ball
@@ -99,12 +91,9 @@ wait
             jp          loop
 
 
+ball        byte        %1.......
 
-ball
-            byte        %1.......
-
-logo
-            byte        %.1111...
+logo        byte        %.1111...
             byte        %11..11..
             byte        %11......
             byte        %11......

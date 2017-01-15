@@ -10,20 +10,9 @@ CHIP-8 is written in [Go](https://golang.org/) and uses [SDL](https://www.libsdl
 
 ## Usage
 
-```
-Usage: CHIP-8 [-a] [-elf] [-o <bin>] [-b] <ROM|C8>
-  -a         assemble/load the ROM only; do not run it 
-  -eti       assemble/load the ROM in ETI-660 mode
-  -o         save the assembled ROM to <file>
-  -i         when saving the ROM, include the CDP1802 interpreter
-  -b         break on load
-```
+Simply launch the app and away you go! Optionally, you can pass the ROM/C8 assembler file of the game you'd like to play on the command line.
 
-Simply pass the filename of the ROM or a .C8 assembly source file to the executable and CHIP-8 will load it, assemble if required, and begin running it. If no ROM or C8 file is specified then a the usage is displayed (if `-a` is present) or an empty program is loaded and the UI is launched.
-
-_Note: The `-eti` flag should be rarely used. The ETI-660 loads CHIP-8 programs starting at address 0x600 instead of 0x200. Use this flag only if you intend to assemble and run a ROM on actual hardware or if you have a ROM assembled in ETI mode. This flag cannot be used with `-i`._
-
-Once the program is running, press `H` at any time to see the list of key commands available to you. But here's a quick breakdown:
+Once running, press `H` at any time to see the list of key commands available to you. But here's a quick breakdown:
 
 | Emulation         | Description
 |:------------------|:-----------------
@@ -42,6 +31,8 @@ Once the program is running, press `H` at any time to see the list of key comman
 | `F7`              | Step over
 | `F8`              | Dump memory at `I` register
 | `F9`              | Toggle breakpoint
+
+_Note: You can launch the emulator with `-eti`. This will tell the emulator to assemble and load ROMs in a mode that supports the ETI-660. This flag should be rarely used. The ETI-660 loads CHIP-8 programs starting at address 0x600 instead of 0x200. Use this if you intend to assemble and run a ROM on actual ETI-660 hardware or if you have a ROM assembled for the ETI (good luck finding one!)._
 
 ### Virtual Key Mapping
 
@@ -89,13 +80,10 @@ Literal constants can be in decimal, hexadecimal, or binary. Only decimal values
 ```
         LD      V0, #FF
         ADD     V0, -2
-    
-BALL    BYTE    %..1111..
-        BYTE    %.1....1.
-        BYTE    %1......1
-        BYTE    %1......1
-        BYTE    %.1....1.
-        BYTE    %..1111..
+
+BALL    BYTE    %.1......
+        BYTE    %111.....
+        BYTE    %.1......
 ```
 
 Text literals can be added with single or double quotes, but there is no escape character. Usually this is just to add text information to the final ROM.
@@ -156,7 +144,7 @@ Here is the CHIP-8 instructions. The Super CHIP-8 instructions follow after the 
 | 8XY6   | SHR VX        | VF = LSB(VX); VX = VX >> 1 (** see note)
 | 8XYE   | SHL VX        | VF = MSB(VX); VX = VX << 1 (** see note)
 | CXNN   | RND VX, NN    | VX = RND() AND NN
-| DXYN   | DRW VX, VY, N | Draw 8xN sprite at I to VX, VY; VF = if collision then 1 else 0
+| DXYN   | DRW VX, VY, N | Draw 8xN sprite at I to VX, VY; VF = 1 if collision else 0
 
 And here are the instructions added for the Super CHIP-8 (a.k.a. CHIP-48):
 
@@ -180,7 +168,7 @@ _(\*): This is implementation-dependent. Originally the CDP1802 CHIP-8 interpret
 
 _(\*\*): So, in the original CHIP-8, the shift opcodes were actually intended to be `VX = VY shift 1`. But somewhere along the way this was dropped and shortened to just be `VX = VX shift 1`. No ROMS or emulators I could find implemented the original CHIP-8 shift instructions, and so neither does this one. However, the assembler will always write out a correct instruction so that any future emulators can implement the shift either way and it will work._
 
-_(\*\*\*): When implementing 16x16 sprite drawing, note that the sprites are drawn row major. The frist two bytes make up the first row, the next two bytes the second row, etc._
+_(\*\*\*): When implementing 16x16 sprite drawing, note that the sprites are drawn row major. The first two bytes make up the first row, the next two bytes the second row, etc._
 
 ### Directives
 
@@ -198,8 +186,6 @@ The assembler understands - beyond instructions - the following directives:
 | `PAD`        | Write "zero" bytes to the ROM. Easier than using `BYTE` and typing out a bunch of `0`'s.
 
 ## Debugging
-
-If `-b` is passed as a command line flag, then the CHIP-8 emulator will start with a breakpoint at the first address executed. This behavior can also be accomplished by rebooting the CHIP-8 emulator (by pressing `BACK`) while holding the `CTRL` key.
 
 While the program is running, pressing `F5` or `SPACE` will pause emulation and break into the debugger. You should see the disassembled code with the current instruction highlighted red.
 
