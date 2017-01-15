@@ -196,10 +196,11 @@ func Load() error {
 	var err error
 
 	if File == "" {
-		Logln("No ROM/C8 specified; loading empty program.")
+		Logln("No ROM/C8 specified; loading boot.")
+		Log("Press F3 to load a ROM/C8.")
 
-		// start the dummy program
-		VM, _ = chip8.LoadROM(chip8.Dummy, false)
+		// start the boot program
+		VM, _ = chip8.LoadROM(chip8.Boot, false)
 	} else {
 		Logln("Loading", filepath.Base(File))
 

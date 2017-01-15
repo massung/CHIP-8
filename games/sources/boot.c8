@@ -1,0 +1,153 @@
+; Loads into the CHIP-8 emulator if there is no ROM/C8 specified.
+;
+; Written by Jeffrey Massung as an example.
+; Hack away and have fun!
+;
+
+            ld          i, logo
+
+            ; where to draw the logo
+            ld          v0, 11
+            ld          v1, 3
+            ld          v2, 7
+
+            ; C
+            drw         v0, v1, 7
+            add         v0, 7
+            add         i, v2
+
+            ; H
+            drw         v0, v1, 7
+            add         v0, 7
+            add         i, v2
+
+            ; I
+            drw         v0, v1, 7
+            add         v0, 7
+            add         i, v2
+
+            ; P
+            drw         v0, v1, 7
+            add         v0, 7
+            add         i, v2
+
+            ; -
+            drw         v0, v1, 7
+            add         v0, 5
+            add         i, v2
+
+            ; 8
+            drw         v0, v1, 7
+            add         i, v2
+
+
+            ; draw the walls
+            ld          v0, 0
+            ld          v1, 0
+            ld          v2, #1f
+            ld          v3, #3f
+
+            ; move a ball around the board
+            ld          i, ball
+
+            ; randomly pick a starting location
+            rnd         v0, #3f
+            rnd         v1, #1f
+
+            ; v2,v3 is dx, dy
+            ld          v2, 1
+            ld          v3, 1
+
+            ; draw the initial ball
+            drw         v0, v1, 1
+
+loop
+            ld          v4, 15
+            ld          dt, v4
+wait
+            ld          v4, dt
+            sne         v4, 0
+            jp          wait
+
+            ; erase the ball
+            drw         v0, v1, 1
+
+            ; move it
+            add         v0, v2
+            add         v1, v3
+
+            ; draw it again in the new position
+            drw         v0, v1, 1
+
+            ; is it at the top?
+            sne         v1, 0
+            ld          v3, 1
+
+            ; is it at the bottom?
+            sne         v1, #1f
+            ld          v3, -1
+
+            ; is it at the left?
+            sne         v0, 0
+            ld          v2, 1
+
+            ; is it at the right?
+            sne         v0, #3f
+            ld          v2, -1
+
+            ; repeat forever
+            jp          loop
+
+
+
+ball
+            byte        %1.......
+
+logo
+            byte        %.1111...
+            byte        %11..11..
+            byte        %11......
+            byte        %11......
+            byte        %11......
+            byte        %11..11..
+            byte        %.1111...
+
+            byte        %11..11..
+            byte        %11..11..
+            byte        %11..11..
+            byte        %111111..
+            byte        %11..11..
+            byte        %11..11..
+            byte        %11..11..
+
+            byte        %111111..
+            byte        %..11....
+            byte        %..11....
+            byte        %..11....
+            byte        %..11....
+            byte        %..11....
+            byte        %111111..
+
+            byte        %11111...
+            byte        %11..11..
+            byte        %11..11..
+            byte        %11111...
+            byte        %11......
+            byte        %11......
+            byte        %11......
+
+            byte        %........
+            byte        %........
+            byte        %........
+            byte        %1111....
+            byte        %........
+            byte        %........
+            byte        %........
+
+            byte        %.1111...
+            byte        %11..11..
+            byte        %11..11..
+            byte        %.1111...
+            byte        %11..11..
+            byte        %11..11..
+            byte        %.1111...

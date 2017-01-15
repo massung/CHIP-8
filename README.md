@@ -145,11 +145,11 @@ Here is the CHIP-8 instructions. The Super CHIP-8 instructions follow after the 
 | FX33   | LD B, VX      | Store BCD representation of VX at I (100), I+1 (10), and I+2 (1); I remains unchanged
 | FX55   | LD [I], VX    | Store V0..VX (inclusive) to memory starting at I; I remains unchanged
 | FX65   | LD VX, [I]    | Load V0..VX (inclusive) from memory starting at I; I remains unchanged
-| FX1E   | ADD I, VX     | I = I + VX; VF = if I > 0xFFF then 1 else 0
+| FX1E   | ADD I, VX     | I = I + VX; VF = 1 if I > 0xFFF else 0
 | 7XNN   | ADD VX, NN    | VX = VX + NN
-| 8XY4   | ADD VX, VY    | VX = VX + VY; VF = if carry then 1 else 0
-| 8XY5   | SUB VX, VY    | VX = VX - VY; VF = if not borrow then 1 else 0
-| 8XY7   | SUBN VX, VY   | VX = VY - VX; VF = if not borrow then 1 else 0
+| 8XY4   | ADD VX, VY    | VX = VX + VY; VF = 1 if carry else 0
+| 8XY5   | SUB VX, VY    | VX = VX - VY; VF = 1 if not borrow else 0
+| 8XY7   | SUBN VX, VY   | VX = VY - VX; VF = 1 if not borrow else 0
 | 8XY1   | OR VX, VY     | VX = VX OR VY
 | 8XY2   | AND VX, VY    | VX = VX AND VY
 | 8XY3   | XOR VX, VY    | VX = VX XOR VY
@@ -217,7 +217,15 @@ Assembly language - if you're not used to it - can be a bit daunting at first. H
 
 * If you want to subtract a constant value from a register, remember it's easier to just add a negative value instead.
 
-* Want to compare greater or less than? Use `SUB` and `SUBN`. Remember `VF` is 1 if there is **not** a borrow (read: the result is >= 0). Use `SUBN` when you want to compare, but not store the result in what you're comparing.
+* Want to compare greater than or equal to? Use `SUB` and `SUBN`. Remember `VF` is 1 if there is **not** a borrow (the result is >= 0). Use `SUBN` when you want to compare, but not store the result in what you're comparing. Examples:
+    * 10-2 .. VF=1
+    * 8-8 .. VF=1
+    * 7-20 .. VF=0
+    
+* Remember that for purposes of borrowing in subtraction, all operands are unsigned!
+    * (-2)-3 = #FE-3 .. VF=1
+    * (-3)-(-4) = #FD-#FC .. VF=1
+    * (-2)-(-1) = #FE-#FF .. VF=0
 
 * Need a switch statement? Use `SE` and `SNE` followed by `JP` instructions to build a jump table. Use a `JP V0, address` instead when possible.
 
@@ -227,6 +235,12 @@ Assembly language - if you're not used to it - can be a bit daunting at first. H
 
 * When setting up global use of registers, leave `V0`-`V2` always free as scratch. Most memory reads/writes use them, especially after performing a `LD` to BCD.
 
+* Only draw when you absolutely have to. Video RAM isn't cleared every "frame" like modern games, so once you draw something it's there until you clear it.
+
+* Since all drawing operations are an XOR, you can draw something simply to test VF, and then draw it again to completely undo the operation.
+
+* While there's no floating point math, it's pretty easy to you 2 bytes (or registers) to perform [fixed point](https://en.wikipedia.org/wiki/Fixed-point_arithmetic) operations.
+
 ## Example CHIP-8 Programs
 
 There are a few example programs in `games/sources` for you you play around with, modify, and learn from.
@@ -234,6 +248,16 @@ There are a few example programs in `games/sources` for you you play around with
 ## Thanks!
 
 Special thanks to Andy Kelts for creating the nice icons and my good friend [Mark Allender](https://github.com/allender) for his continual harassment. And if you think this is cool, check out Mark's [Apple II emulator](https://github.com/allender/apple2emu)! 
+
+## Roadmap
+
+Here are a few features I'm still planning on adding...
+
+* Saving/restoring of VM images.
+* Including C8 source files.
+* Importing 1-bit images into C8 files.
+* Saving screen shots and maybe videos to GIF.
+* Loading ROMs directly onto [COSMAC ELF hardware](http://www.cosmacelf.com/gallery/membership-cards/). 
 
 ## That's all folks!
 
