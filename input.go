@@ -43,6 +43,7 @@ func ProcessEvents() bool {
 					File = ""
 
 					// go back to the boot program
+					Logln("Unloading ROM")
 					Load()
 				case sdl.SCANCODE_BACKSPACE:
 					VM.Reset()
