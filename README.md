@@ -6,7 +6,7 @@ CHIP-8 is an assembler, debugger, and emulator for the [COSMAC ELF][2] [CHIP-8][
 
 From the screen capture above you can see the disassembled program, register values, and a log which is used to show breakpoint information, memory dumps, and more.
 
-CHIP-8 is written in [Go](https://golang.org/) and uses [SDL](https://www.libsdl.org/) for its rendering, input handling, and audio. It should easily run on Windows, OS X, and Linux.
+CHIP-8 is written in [Go](https://golang.org/) and uses [SDL](https://www.libsdl.org/) for its rendering, input handling, and audio. It should easily run on Windows, OS X, and Linux. It - and the source code - are under the [ZLIB license](https://en.wikipedia.org/wiki/Zlib_License).
 
 ## Usage
 

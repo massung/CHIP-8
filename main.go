@@ -1,12 +1,38 @@
+/* Copyright (c) 2017 Jeffrey Massung
+ *
+ * This software is provided 'as-is', without any express or implied
+ * warranty.  In no event will the authors be held liable for any damages
+ * arising from the use of this software.
+ *
+ * Permission is granted to anyone to use this software for any purpose,
+ * including commercial applications, and to alter it and redistribute it
+ * freely, subject to the following restrictions:
+ *
+ * 1. The origin of this software must not be misrepresented; you must not
+ *    claim that you wrote the original software. If you use this software
+ *    in a product, an acknowledgment in the product documentation would be
+ *    appreciated but is not required.
+ *
+ * 2. Altered source versions must be plainly marked as such, and must not be
+ *    misrepresented as being the original software.
+ *
+ * 3. This notice may not be removed or altered from any source distribution.
+ */
+
 package main
 
+// typedef unsigned char byte;
+// void Tone(void *data, byte *stream, int len);
+import "C"
 import (
 	"flag"
 	"fmt"
 	"math/rand"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"time"
+	"unsafe"
 
 	"github.com/massung/chip-8/chip8"
 	"github.com/sqweek/dialog"
@@ -14,6 +40,30 @@ import (
 )
 
 var (
+	/// VM is the CHIP-8 virtual machine.
+	///
+	VM *chip8.CHIP_8
+
+	/// window is the global SDL window.
+	///
+	Window *sdl.Window
+
+	/// renderer is the global SDL renderer.
+	///
+	Renderer *sdl.Renderer
+
+	/// screen is the global SDL render target for the VM's video memory.
+	///
+	Screen *sdl.Texture
+
+	/// Font is a fixed-width, bitmap font.
+	///
+	Font *sdl.Texture
+
+	/// Log is the output Logger.
+	///
+	Debug *Logger
+
 	/// ETI is true if assembling for an ETI-660 (ROM starts at 0x600
 	/// instead of 0x200).
 	///
@@ -23,13 +73,40 @@ var (
 	///
 	Paused bool
 
-	/// File is the file that will be/was loaded.
+	/// File is the currently opened ROM/C8.
 	///
 	File string
 
-	/// VM is the CHIP-8 virtual machine.
+	/// Volume is the current tone volume level. When ST is non-zero
+	/// the volume will be 1.0. But, when ST hits 0 then the volume
+	/// needs to be ramped down to 0.0.
 	///
-	VM *chip8.CHIP_8
+	Volume float32
+
+	/// Current start address for disassembled instructions.
+	///
+	Address uint
+
+	/// KeyMap of modern keyboard keys to CHIP-8 keys.
+	///
+	KeyMap = map[sdl.Scancode]uint {
+		sdl.SCANCODE_X: 0x0,
+		sdl.SCANCODE_1: 0x1,
+		sdl.SCANCODE_2: 0x2,
+		sdl.SCANCODE_3: 0x3,
+		sdl.SCANCODE_Q: 0x4,
+		sdl.SCANCODE_W: 0x5,
+		sdl.SCANCODE_E: 0x6,
+		sdl.SCANCODE_A: 0x7,
+		sdl.SCANCODE_S: 0x8,
+		sdl.SCANCODE_D: 0x9,
+		sdl.SCANCODE_Z: 0xA,
+		sdl.SCANCODE_C: 0xB,
+		sdl.SCANCODE_4: 0xC,
+		sdl.SCANCODE_R: 0xD,
+		sdl.SCANCODE_F: 0xE,
+		sdl.SCANCODE_V: 0xF,
+	}
 )
 
 func init() {
@@ -37,30 +114,83 @@ func init() {
 }
 
 func main() {
-	var err error
+	if err := sdl.Init(sdl.INIT_VIDEO | sdl.INIT_AUDIO); err != nil {
+		panic(err)
+	}
 
-	// seed the random number generator
+	// create a new debug log
+	Debug = NewLog()
+
+	// show copyright information
+	Debug.Log("CHIP-8, Copyright 2017 by Jeffrey Massung")
+	Debug.Log("All rights reserved")
+
+	// initialize random number generation for VM
 	rand.Seed(time.Now().UTC().UnixNano())
 
 	// parse the command line
 	flag.BoolVar(&ETI, "eti", false, "Start ROM at 0x600 for ETI-660.")
 	flag.Parse()
 
-	// get the file name of the ROM to load
-	File = flag.Arg(0)
-
-	// initialize SDL or panic if running it
-	if err = sdl.Init(sdl.INIT_VIDEO | sdl.INIT_AUDIO); err != nil {
-		panic(err)
+	// if launching in ETI mode, note that
+	if ETI {
+		Debug.Logln("Running in ETI-660 mode")
 	}
 
-	// create the main window and renderer or panic
+	// create the new VM
+	if file := flag.Arg(0); file != "" {
+		load(file)
+	} else {
+		unload()
+	}
+
+	// create the main window, renderer, and screen or panic
+	createWindow()
+	loadFont()
+	initAudio()
+
+	// set processor speed and refresh rate
+	clock := time.NewTicker(time.Millisecond * 2)
+	video := time.NewTicker(time.Second / 60)
+
+	// notify that the main loop has started
+	Debug.Logln("Starting program; press 'H' for help")
+
+	// loop until window closed or user quit
+	for processEvents() {
+		select {
+		case <-video.C:
+			redraw()
+		case <-clock.C:
+			res := VM.Process(Paused)
+
+			switch res.(type) {
+			case chip8.Breakpoint:
+				Debug.Log()
+				Debug.Log(res.Error())
+
+				// break the emulation
+				Paused = true
+			}
+		}
+	}
+}
+
+/// createWindow creates the SDL window and renderer or panics.
+///
+func createWindow() {
+	var err error
+
+	// window attributes
 	flags := sdl.WINDOW_OPENGL | sdl.WINDOWPOS_CENTERED
-	if Window, Renderer, err = sdl.CreateWindowAndRenderer(614, 380, uint32(flags)); err != nil {
+
+	// create the window and renderer
+	Window, Renderer, err = sdl.CreateWindowAndRenderer(614, 380, uint32(flags))
+	if err != nil {
 		panic(err)
 	}
 
-	// set the icon
+	// load the icon and use it if found
 	if icon, err := sdl.LoadBMP("chip8_16.bmp"); err == nil {
 		mask := sdl.MapRGB(icon.Format, 255, 0, 255)
 
@@ -72,51 +202,209 @@ func main() {
 	// set the title
 	Window.SetTitle("CHIP-8")
 
-	// show copyright information
-	Log("CHIP-8, Copyright 2017 by Jeffrey Massung")
-	Log("All rights reserved")
+	// desired screen format and access
+	format := sdl.PIXELFORMAT_RGB888
+	access := sdl.TEXTUREACCESS_TARGET
 
-	// create a new CHIP-8 virtual machine
-	Load()
-
-	// if running the ROM is desired, do it now
-	InitScreen()
-	InitAudio()
-	InitFont()
-
-	// if launching in ETI mode, note that
-	if ETI {
-		Logln("Running in ETI-660 mode")
-	}
-
-	// set processor speed and refresh rate
-	clock := time.NewTicker(time.Millisecond * 2)
-	video := time.NewTicker(time.Second / 60)
-
-	// notify that the main loop has started
-	Logln("Starting program; press 'H' for help")
-
-	// loop until window closed or user quit
-	for ProcessEvents() {
-		select {
-		case <-video.C:
-			Refresh()
-		case <-clock.C:
-			res := VM.Process(Paused)
-
-			switch res.(type) {
-			case chip8.Breakpoint:
-				Log()
-				Log(res.Error())
-
-				// break the emulation
-				Paused = true
-			}
-		}
+	// create a render target for the display
+	Screen, err = Renderer.CreateTexture(uint32(format), access, 128, 64)
+	if err != nil {
+		panic(err)
 	}
 }
 
-func LoadDialog() {
+/// initAudio initializes an audio device for the CHIP-8 virtual machine.
+///
+func initAudio() {
+	spec := &sdl.AudioSpec {
+		Freq: 3000,
+		Format: sdl.AUDIO_F32,
+		Channels: 1,
+		Samples: 32,
+		Callback: sdl.AudioCallback(C.Tone),
+	}
+
+	// open the device and start playing it
+	if err := sdl.OpenAudio(spec, nil); err != nil {
+		panic(err)
+	}
+
+	// start playing the tone immediately
+	sdl.PauseAudio(false)
+
+	// no sound volume
+	Volume = 0.0
+}
+
+//export Tone
+func Tone(_ unsafe.Pointer, stream *C.byte, length C.int) {
+	p := uintptr(unsafe.Pointer(stream))
+	n := int(length)
+
+	// perform the conversion cast
+	buf := *(*[]C.float)(unsafe.Pointer(&reflect.SliceHeader{
+		Data: p,
+		Len: n,
+		Cap: n,
+	}))
+
+	// get the current time
+	now := time.Now().UnixNano()
+
+	// ramp the volume to the desired end
+	if now < VM.ST {
+		Volume = 1.0
+	} else {
+		if Volume > 0.0 {
+			Volume -= 0.25
+		}
+	}
+
+	// fill in the data with a constant tone
+	for i := 0; i < n; i+=4 {
+		buf[i] = C.float(Volume)
+	}
+}
+
+/// loadFont loads the bitmap surface with font on it.
+///
+func loadFont() {
+	var surface *sdl.Surface
+	var err error
+
+	if surface, err = sdl.LoadBMP("font.bmp"); err != nil {
+		panic(err)
+	}
+
+	// get the magenta color
+	mask := sdl.MapRGB(surface.Format, 255, 0, 255)
+
+	// set the mask color key
+	surface.SetColorKey(1, mask)
+
+	// create the texture
+	if Font, err = Renderer.CreateTextureFromSurface(surface); err != nil {
+		panic(err)
+	}
+}
+
+/// processEvents from SDL and map keys to the CHIP-8 VM.
+///
+func processEvents() bool {
+	for e := sdl.PollEvent(); e != nil; e = sdl.PollEvent() {
+		switch ev := e.(type) {
+		case *sdl.QuitEvent:
+			return false
+		case *sdl.KeyDownEvent:
+			if key, ok := KeyMap[ev.Keysym.Scancode]; ok {
+				VM.PressKey(key)
+			} else {
+				switch ev.Keysym.Scancode {
+				case sdl.SCANCODE_ESCAPE:
+					unload()
+				case sdl.SCANCODE_BACKSPACE:
+					reboot(ev.Keysym.Mod&sdl.KMOD_CTRL != 0)
+				case sdl.SCANCODE_UP, sdl.SCANCODE_PAGEUP:
+					Debug.ScrollUp()
+				case sdl.SCANCODE_DOWN, sdl.SCANCODE_PAGEDOWN:
+					Debug.ScrollDown(16)
+				case sdl.SCANCODE_HOME:
+					Debug.Home()
+				case sdl.SCANCODE_END:
+					Debug.End()
+				case sdl.SCANCODE_F2:
+					load(File)
+				case sdl.SCANCODE_F3:
+					open()
+				case sdl.SCANCODE_F4:
+					save()
+				case sdl.SCANCODE_H:
+					help()
+				case sdl.SCANCODE_LEFTBRACKET:
+					VM.DecSpeed()
+				case sdl.SCANCODE_RIGHTBRACKET:
+					VM.IncSpeed()
+				case sdl.SCANCODE_F5, sdl.SCANCODE_SPACE:
+					Paused = !Paused
+				case sdl.SCANCODE_F6, sdl.SCANCODE_F10:
+					if Paused {
+						VM.Step()
+					}
+				case sdl.SCANCODE_F7, sdl.SCANCODE_F11:
+					if Paused {
+						VM.SetOverBreakpoint()
+						Paused = false
+					}
+				case sdl.SCANCODE_F8:
+					if Paused  {
+						dumpMemory()
+					}
+				case sdl.SCANCODE_F9:
+					if Paused {
+						VM.ToggleBreakpoint()
+					}
+				}
+			}
+		case *sdl.KeyUpEvent:
+			if key, ok := KeyMap[ev.Keysym.Scancode]; ok {
+				VM.ReleaseKey(key)
+			}
+		}
+	}
+
+	return true
+}
+
+/// help logs all the keyboard commands.
+///
+func help() {
+	Debug.Logln("Keys        | Description")
+	Debug.Log("------------+-------------------------------------")
+	Debug.Log("BACK        | Reboot (+CTRL to break on reset)")
+	Debug.Log("[ / ]       | Deacrease/increase speed")
+	Debug.Log("HOME / END  | Scroll log")
+	Debug.Log("PGUP / PGDN | Scroll log")
+	Debug.Log("F2          | Reload ROM/C8 assember")
+	Debug.Log("F3          | Open ROM/C8 assembler")
+	Debug.Log("F4          | Save ROM")
+	Debug.Log("F5          | Pause/break")
+	Debug.Log("F6          | Step")
+	Debug.Log("F7          | Step over")
+	Debug.Log("F8          | Debug memory")
+	Debug.Log("F9          | Set breakpoint")
+}
+
+/// save launches a dialog allowing the user to save the current ROM.
+///
+func save() error {
+	dlg := dialog.File().Title("Save CHIP-8 ROM")
+
+	dlg.Filter("All Files", "*")
+	dlg.Filter("Binary Files", "bin")
+	dlg.Filter("ROM Files", "rom")
+
+	// pick a file to save to
+	if file, err := dlg.Save(); err != nil {
+		Debug.Logln(err.Error())
+
+		// don't try and write it
+		return err
+	} else {
+		err := VM.SaveROM(file, false)
+
+		if err == nil {
+			Debug.Logln("ROM saved to", filepath.Base(file))
+		} else {
+			Debug.Logln(err.Error())
+		}
+
+		return err
+	}
+}
+
+/// open shows the open file dialog to load ROM/C8 file.
+///
+func open() error {
 	dlg := dialog.File().Title("Load ROM / C8 Assembler")
 
 	// types of files to load
@@ -126,88 +414,193 @@ func LoadDialog() {
 
 	// try and load it
 	if file, err := dlg.Load(); err == nil {
-		File = file
-
-		// load the file
-		Load()
+		return load(file)
+	} else {
+		return err
 	}
 }
 
-func Load() error {
+/// load a ROM/C8 file.
+///
+func load(file string) error {
 	var err error
 
-	if File == "" {
-		Logln("No ROM/C8 specified; loading boot")
-		Log("Press F3 to load a ROM/C8")
+	// log what is being loaded
+	Debug.Logln("Loading", filepath.Base(file))
 
-		// start the boot program
-		VM, _ = chip8.LoadROM(chip8.Boot, false)
+	// attempt to assemble/load the file
+	if VM, err = chip8.LoadFile(file, ETI); err != nil {
+		Debug.Log(err.Error())
+
+		// load a dummy ROM so something is there
+		VM, _ = chip8.LoadROM(chip8.Dummy, false)
 	} else {
-		Logln("Loading", filepath.Base(File))
+		Debug.Log(fmt.Sprint(VM.Size), "bytes")
 
-		if VM, err = chip8.LoadFile(File, ETI); err != nil {
-			Log(err.Error())
-
-			// load a dummy ROM so something is there
-			VM, _ = chip8.LoadROM(chip8.Dummy, false)
-		} else {
-			Log(fmt.Sprint(VM.Size), "bytes")
-		}
+		// save the loaded file
+		File = file
 	}
 
 	return err
 }
 
-func Save(includeInterpreter bool) error {
-	dlg := dialog.File().Title("Save CHIP-8 ROM")
+/// unload creates a new VM with the boot ROM.
+///
+func unload() {
+	if VM != nil {
+		Debug.Logln("Unloading ROM")
+	}
 
-	dlg.Filter("All Files", "*")
-	dlg.Filter("Binary Files", "bin")
-	dlg.Filter("ROM Files", "rom")
+	// create the new VM with the boot ROM
+	VM, _ = chip8.LoadROM(chip8.Boot, false)
 
-	// pick a file to save to
-	if file, err := dlg.Save(); err != nil {
-		Logln(err.Error())
+	// no longer paused
+	Paused = false
+}
 
-		// don't try and write it
-		return err
-	} else {
-		err := VM.SaveROM(file, includeInterpreter)
+/// reboot the emulator, restarting the loaded virtual machine ROM.
+///
+func reboot(breakOnReset bool) {
+	Paused = breakOnReset
 
-		if err == nil {
-			Logln("ROM saved to", filepath.Base(file))
-		} else {
-			Logln(err.Error())
+	// reset registers and memory
+	VM.Reset()
+}
+
+/// dumpMemory shows the next 48 bytes at the I register.
+///
+func dumpMemory() {
+	Debug.Logln("Memory dump at I...")
+
+	// starting address
+	a := int(VM.I)
+
+	// 12 bytes will be written here
+	s := make([]string, 20)
+
+	// show 6 lines of 12 bytes each
+	for line := 0; line < 6; line++ {
+		n := a + line*12
+
+		// memory address
+		s[0] = fmt.Sprintf(" %04X -", n)
+
+		// fill in the 12-byte row
+		for i := 0;i < 12;i++ {
+			if n+i < 0x10000 {
+				s[i+1] = fmt.Sprintf("%02X", VM.Memory[n+i])
+			} else {
+				s[i+1] = ""
+			}
 		}
 
-		return err
+		Debug.Log(s...)
 	}
 }
 
-func Refresh() {
+/// updateScreen with the CHIP-8 video memory.
+///
+func updateScreen() {
+	if err := Renderer.SetRenderTarget(Screen); err != nil {
+		panic(err)
+	}
+
+	// the background color for the screen
+	Renderer.SetDrawColor(143, 145, 133, 255)
+	Renderer.Clear()
+
+	// set the pixel color
+	Renderer.SetDrawColor(17, 29, 43, 255)
+
+	// redraw only the dimensions of the video
+	w, h := VM.GetResolution()
+
+	// the pitch (in bits) is the width, calculate shift
+	shift := uint(6 + (w>>7))
+
+	// draw all the pixels
+	for p := 0;p < w*h;p++ {
+		if VM.Video[p>>3] & (0x80 >> uint(p&7)) != 0 {
+			x := int(p&(w-1))
+			y := int(p>>shift)
+
+			// render the pixel to the screen
+			Renderer.DrawPoint(x, y)
+		}
+	}
+
+	// restore the render target
+	Renderer.SetRenderTarget(nil)
+}
+
+/// clear the renderer, redraw everything, and present.
+///
+func redraw() {
+	updateScreen()
+
+	// clear the renderer
 	Renderer.SetDrawColor(32, 42, 53, 255)
 	Renderer.Clear()
 
-	// frame various portions of the app
-	Frame(8, 8, 386, 194)
-	Frame(8, 208, 386, 164)
-	Frame(402, 8, 204, 194)
-	Frame(402, 208, 204, 164)
+	// frame the screen, instructions, log, and registers
+	frame(8, 8, 386, 194)
+	frame(8, 208, 386, 164)
+	frame(402, 8, 204, 194)
+	frame(402, 208, 204, 164)
 
-	// update the video screen and copy it
-	RefreshScreen()
-	CopyScreen(10, 10, 384, 192)
+	// draw the screen, log, instructions, and registers
+	drawScreen()
+	drawLog()
+	drawInstructions()
+	drawRegisters()
 
-	// debug assembly and virtual registers
-	DebugLog(12, 212)
-	DebugAssembly(406, 12)
-	DebugRegisters(406, 212)
-
-	// show the new frame
+	// show it
 	Renderer.Present()
 }
 
-func Frame(x, y, w, h int) {
+/// copyScreen to the render target at a given location.
+///
+func drawScreen() {
+	vw, vh := VM.GetResolution()
+
+	// source area of the screen target
+	src := sdl.Rect{
+		W: int32(vw),
+		H: int32(vh),
+	}
+
+	// stretch the render target to fit
+	Renderer.Copy(Screen, &src, &sdl.Rect{X: 10, Y: 10, W: 384, H: 192})
+}
+
+/// drawText using the bitmap font a string at a given location.
+///
+func drawText(s string, x, y int) {
+	src := sdl.Rect{W: 5, H: 7}
+	dst := sdl.Rect{
+		X: int32(x),
+		Y: int32(y),
+		W: 5,
+		H: 7,
+	}
+
+	// loop over all the characters in the string
+	for _, c := range s {
+		if c > 32 && c < 127 {
+			src.X = (c - 33) * 6
+
+			// draw the character to the renderer
+			Renderer.Copy(Font, &src, &dst)
+		}
+
+		// advance
+		dst.X += 7
+	}
+}
+
+/// frame draws a highlighted panel to a rectangular area.
+///
+func frame(x, y, w, h int) {
 	Renderer.SetDrawColor(0, 0, 0, 255)
 	Renderer.DrawLine(x, y, x + w, y)
 	Renderer.DrawLine(x, y, x, y + h)
@@ -216,4 +609,86 @@ func Frame(x, y, w, h int) {
 	Renderer.SetDrawColor(95, 112, 120, 255)
 	Renderer.DrawLine(x + w, y, x + w, y + h)
 	Renderer.DrawLine(x, y + h, x + w, y + h)
+}
+
+/// drawLog shows the current log window.
+///
+func drawLog() {
+	x, y := 12, 212
+
+	for i, s := range Debug.Window(16) {
+		if len(s) >= 54 {
+			drawText(s[:52] + "...", x, y + i*10)
+		} else {
+			drawText(s, x, y + i*10)
+		}
+	}
+}
+
+/// drawInstructions shows the disassembled code and current instruction.
+///
+func drawInstructions() {
+	x, y := 406, 12
+
+	// determine if the address window needs to move
+	if Address <= VM.PC-38 || Address >= VM.PC-2 || (Address&1) != (VM.PC&1) {
+		Address = VM.PC-2
+	}
+
+	// show the disassembled instructions
+	for i := 0;i < 38;i+=2 {
+		if Address + uint(i) == VM.PC {
+			if Paused {
+				Renderer.SetDrawColor(176, 32, 57, 255)
+			} else {
+				Renderer.SetDrawColor(57, 102, 176, 255)
+			}
+
+			// highlight the current instruction
+			Renderer.FillRect(&sdl.Rect{
+				X: int32(x-2),
+				Y: int32(y + i*5)-1,
+				W: 202,
+				H: 10,
+			})
+		}
+
+		drawText(VM.Disassemble(Address + uint(i)), x, y + i*5)
+
+		// is there a breakpoint on this instruction?
+		if _, exists := VM.Breakpoints[int(Address) + i]; exists {
+			Renderer.SetDrawColor(255, 0, 0, 255)
+			Renderer.DrawRect(&sdl.Rect{
+				X: int32(x-2),
+				Y: int32(y + i*5)-1,
+				W: 202,
+				H: 10,
+			})
+		}
+	}
+}
+
+/// drawRegisters shows the current value of all virtual registers.
+///
+func drawRegisters() {
+	x, y := 406, 212
+
+	for i := 0;i < 16;i++ {
+		drawText(fmt.Sprintf("V%X = #%02X", i, VM.V[i]), x, y + i*10)
+	}
+
+	// shift over to next column
+	x += 98
+
+	// show the v-registers
+	drawText(fmt.Sprintf("DT = #%02X", VM.GetDelayTimer()), x, y)
+	drawText(fmt.Sprintf("ST = #%02X", VM.GetSoundTimer()), x, y+10)
+	drawText(fmt.Sprintf(" I = #%04X", VM.I), x, y+30)
+	drawText(fmt.Sprintf("PC = #%04X", VM.PC), x, y+50)
+	drawText(fmt.Sprintf("SP = #%02X", VM.SP), x, y+60)
+
+	// show the HP-RPL user flags
+	for i := 0;i < 8;i++ {
+		drawText(fmt.Sprintf("R%d = #%02X", i, VM.R[i]), x, y+80 + i*10)
+	}
 }
