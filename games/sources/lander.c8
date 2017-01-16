@@ -212,7 +212,7 @@ init_lander     rnd         x, #3f
 
                 ; Pick a random, lateral velocity.
                 rnd         vx, #1f
-                add         vx, -8
+                add         vx, -15
 
                 ; Reset the thrust/tilt vectors.
                 ld          thrust, #80
