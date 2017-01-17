@@ -253,7 +253,7 @@ Assembly language - if you're not used to it - can be a bit daunting at first. H
 
 ## Example CHIP-8 Programs
 
-There are a few example programs in `games/sources` for you you play around with, modify, and learn from.
+There are a few example programs in [games/sources/](https://github.com/massung/chip-8/tree/master/games/sources) for you you play around with, modify, and learn from.
 
 ## Thanks!
 
