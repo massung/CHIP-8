@@ -10,7 +10,7 @@ CHIP-8 is written in [Go](https://golang.org/) and uses [SDL](https://www.libsdl
 
 ## Downloading
 
-You can download the latest pre-built release for your platform [here](https://github.com/massung/chip-8/releases).
+You can download the latest pre-built release for your platform [here](https://github.com/massung/CHIP-8/releases).
 
 ## Building
 
@@ -79,7 +79,7 @@ While playing the games that exist for the CHIP-8 might be fun for a while, the 
 
 Just about every assembler for the CHIP-8 is different, and this one is, too. It's designed with a few niceties in mind. So, bear this in mind and take a few minutes to peruse this documentation.
 
-Heavily documented, example programs can be found in [games/sources/](https://github.com/massung/chip-8/tree/master/games/sources).
+Heavily documented, example programs can be found in [games/sources/](https://github.com/massung/CHIP-8/tree/master/games/sources).
 
 ### Syntax
 
@@ -257,7 +257,7 @@ Assembly language - if you're not used to it - can be a bit daunting at first. H
 
 ## Example CHIP-8 Programs
 
-There are a few example programs in [games/sources/](https://github.com/massung/chip-8/tree/master/games/sources) for you you play around with, modify, and learn from.
+There are a few example programs in [games/sources/](https://github.com/massung/CHIP-8/tree/master/games/sources) for you you play around with, modify, and learn from.
 
 ## Thanks!
 
