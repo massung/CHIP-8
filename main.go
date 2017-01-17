@@ -21,8 +21,7 @@
 
 package main
 
-// typedef unsigned char byte;
-// void Tone(void *data, byte *stream, int len);
+// void Tone(void *data, void *stream, int len);
 import "C"
 import (
 	"flag"
@@ -44,15 +43,15 @@ var (
 	///
 	VM *chip8.CHIP_8
 
-	/// window is the global SDL window.
+	/// Window is the global SDL window.
 	///
 	Window *sdl.Window
 
-	/// renderer is the global SDL renderer.
+	/// Renderer is the global SDL renderer.
 	///
 	Renderer *sdl.Renderer
 
-	/// screen is the global SDL render target for the VM's video memory.
+	/// Screen is the global SDL render target for the VM's video memory.
 	///
 	Screen *sdl.Texture
 
@@ -64,8 +63,7 @@ var (
 	///
 	Debug *Logger
 
-	/// ETI is true if assembling for an ETI-660 (ROM starts at 0x600
-	/// instead of 0x200).
+	/// ETI is true if ROM starts at 0x600 instead of 0x200.
 	///
 	ETI bool
 
@@ -239,7 +237,7 @@ func initAudio() {
 }
 
 //export Tone
-func Tone(_ unsafe.Pointer, stream *C.byte, length C.int) {
+func Tone(_ unsafe.Pointer, stream unsafe.Pointer, length C.int) {
 	p := uintptr(unsafe.Pointer(stream))
 	n := int(length)
 

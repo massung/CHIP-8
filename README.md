@@ -8,11 +8,35 @@ From the screen capture above you can see the disassembled program, register val
 
 CHIP-8 is written in [Go](https://golang.org/) and uses [SDL](https://www.libsdl.org/) for its rendering, input handling, and audio. It should easily run on Windows, OS X, and Linux. It - and the source code - are under the [ZLIB license](https://en.wikipedia.org/wiki/Zlib_License).
 
+## Building
+
+If you'd like to build yourself, then you'll need the [gl-sdl2](https://godoc.org/github.com/veandco/go-sdl2/sdl) package (which requires [cgo](https://golang.org/cmd/cgo/) to build). But, once you have that it should be as simple as running:
+
+```
+$ go build -ldflags "-H windowsgui"
+```
+
+If you'd like a nice application icon for Windows, then grab [akavel/rsrc](https://github.com/akavel/rsrc) and build the `syso` file for your architecture and then build:
+
+```
+$ rsrc -arch [386|amd64] -ico chip8.ico -o chip-8.syso
+Icon  chip8.ico  ID:  4
+
+$ go build -ldflags "-H windowsgui"
+```
+
+That's it. You should have a `chip-8` executable ready to run.
+
 ## Usage
 
-Simply launch the app and away you go! Optionally, you can pass the ROM/C8 assembler file of the game you'd like to play on the command line.
+Simply launch the app and away you go!
+ 
+If you get an error on startup or the application fails to launch for an unknown reason, it's most likely due to one of the following reasons:
 
-Once running, press `H` at any time to see the list of key commands available to you. But here's a quick breakdown:
+* `SDL2.DLL` is missing (or not installed).
+* `FONT.BMP` is missing.
+
+Once launched, press `H` at any time to see the list of key commands available to you. But here's a quick breakdown:
 
 | Emulation         | Description
 |:------------------|:-----------------
