@@ -10,7 +10,7 @@ CHIP-8 is written in [Go](https://golang.org/) and uses [SDL](https://www.libsdl
 
 ## Building
 
-If you'd like to build yourself, then you'll need the [gl-sdl2](https://godoc.org/github.com/veandco/go-sdl2/sdl) package (which requires [cgo](https://golang.org/cmd/cgo/) to build). But, once you have that it should be as simple as running:
+If you'd like to build yourself, then you'll need the [go-sdl2](https://godoc.org/github.com/veandco/go-sdl2/sdl) package (which requires [cgo](https://golang.org/cmd/cgo/) to build). But, once you have that it should be as simple as running:
 
 ```
 $ go build -ldflags "-H windowsgui"
@@ -31,7 +31,7 @@ That's it. You should have a `chip-8` executable ready to run.
 
 Simply launch the app and away you go!
  
-If you get an error on startup or the application fails to launch for an unknown reason, it's most likely due to one of the following reasons:
+If you get a panic on startup or the application fails to launch for an unknown reason, it's most likely due to one of the following:
 
 * `SDL2.DLL` is missing (or not installed).
 * `FONT.BMP` is missing.
