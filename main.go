@@ -313,7 +313,9 @@ func processEvents() bool {
 				case sdl.SCANCODE_END:
 					Debug.End()
 				case sdl.SCANCODE_F2:
-					load(File)
+					if File != "" {
+						load(File)
+					}
 				case sdl.SCANCODE_F3:
 					open()
 				case sdl.SCANCODE_F4:
@@ -459,6 +461,9 @@ func unload() {
 
 	// no longer paused
 	Paused = false
+
+	// clear the loaded file
+	File = ""
 }
 
 /// reboot the emulator, restarting the loaded virtual machine ROM.
