@@ -277,7 +277,7 @@ func initAudio() {
 
 //export Tone
 func Tone(_ unsafe.Pointer, stream unsafe.Pointer, length C.int) {
-	p := uintptr(unsafe.Pointer(stream))
+	p := uintptr(stream)
 	n := int(length)
 
 	// perform the conversion cast
@@ -334,6 +334,8 @@ func processEvents() bool {
 		switch ev := e.(type) {
 		case *sdl.QuitEvent:
 			return false
+		case *sdl.DropEvent:
+			load(C.GoString((*C.char)(ev.File)))
 		case *sdl.KeyDownEvent:
 			if key, ok := KeyMap[ev.Keysym.Scancode]; ok {
 				VM.PressKey(key)

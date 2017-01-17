@@ -40,7 +40,7 @@ If you get a panic on startup or the application fails to launch for an unknown 
 * `SDL2.DLL` is missing (or not installed).
 * `FONT.BMP` is missing.
 
-Once launched, press `H` at any time to see the list of key commands available to you. But here's a quick breakdown:
+Once launched simply drag a ROM or C8 source file into the app to load it. You can also press `H` at any time to see the list of key commands available to you. But here's a quick breakdown:
 
 | Emulation         | Description
 |:------------------|:-----------------
