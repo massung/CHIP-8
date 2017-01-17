@@ -24,8 +24,11 @@ package main
 // void Tone(void *data, void *stream, int len);
 import "C"
 import (
+	"bytes"
+	"compress/gzip"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"path/filepath"
 	"reflect"
@@ -36,9 +39,6 @@ import (
 	"github.com/massung/CHIP-8/chip8"
 	"github.com/sqweek/dialog"
 	"github.com/veandco/go-sdl2/sdl"
-	"io/ioutil"
-	"compress/gzip"
-	"bytes"
 )
 
 var (
