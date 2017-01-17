@@ -23,8 +23,8 @@ $ go build -ldflags "-H windowsgui"
 If you'd like a nice application icon for Windows, then grab [akavel/rsrc](https://github.com/akavel/rsrc) and build the `syso` file for your architecture and then build:
 
 ```
-$ rsrc -arch [386|amd64] -ico chip8.ico -o chip-8.syso
-Icon  chip8.ico  ID:  4
+$ rsrc -arch [386|amd64] -ico chip-8.ico -o chip-8.syso
+Icon  chip-8.ico  ID:  4
 
 $ go build -ldflags "-H windowsgui"
 ```
