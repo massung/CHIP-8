@@ -27,8 +27,8 @@ Once running, press `H` at any time to see the list of key commands available to
 | Debugging         | Description
 |:------------------|:-----------------
 | `F5`              | Pause/break emulation
-| `F6`              | Single step
-| `F7`              | Step over
+| `F6`              | Step over
+| `F7`              | Step into
 | `F8`              | Dump memory at `I` register
 | `F9`              | Toggle breakpoint
 

@@ -341,18 +341,26 @@ func (vm *CHIP_8) SetBreakpoint(b Breakpoint) {
 	}
 }
 
-/// SetOverBreakpoint creates a one-time breakpoint on the next instruction.
+/// StepOverBreakpoint creates a one-time breakpoint on the next instruction
+/// if the current instruction is a CALL.
 ///
-func (vm *CHIP_8) SetOverBreakpoint() {
-	a := int(vm.PC) + 2
+func (vm *CHIP_8) StepOverBreakpoint() bool {
+	if vm.Memory[vm.PC]&0xF0 != 0x20 {
+		return false
+	}
 
-	if _, ok := vm.Breakpoints[a]; !ok {
+	// set create a one-time breakpoint at the next instruction
+	address := int(vm.PC) + 2
+
+	// only if one isn't already there
+	if _, ok := vm.Breakpoints[address]; !ok {
 		vm.SetBreakpoint(Breakpoint{
-			Address: a,
-			Reason: "Step",
-			Once: true,
+			Address: address,
+			Once:    true,
 		})
 	}
+
+	return true
 }
 
 /// RemoveBreakpoint clears a breakpoint at a given ROM Address.
@@ -364,15 +372,15 @@ func (vm *CHIP_8) RemoveBreakpoint(address int) {
 /// ToggleBreakpoint at the current PC. Any reason is lost.
 ///
 func (vm *CHIP_8) ToggleBreakpoint() {
-	a := int(vm.PC)
+	address := int(vm.PC)
 
-	if _, ok := vm.Breakpoints[a]; !ok {
+	if _, ok := vm.Breakpoints[address]; !ok {
 		vm.SetBreakpoint(Breakpoint{
-			Address: a,
+			Address: address,
 			Reason: "User break",
 		})
 	} else {
-		vm.RemoveBreakpoint(a)
+		vm.RemoveBreakpoint(address)
 	}
 }
 

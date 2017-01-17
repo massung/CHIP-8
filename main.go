@@ -164,10 +164,12 @@ func main() {
 		case <-clock.C:
 			res := VM.Process(Paused)
 
-			switch res.(type) {
+			switch breakpoint := res.(type) {
 			case chip8.Breakpoint:
-				Debug.Log()
-				Debug.Log(res.Error())
+				if !breakpoint.Once {
+					Debug.Log()
+					Debug.Log(res.Error())
+				}
 
 				// break the emulation
 				Paused = true
@@ -328,12 +330,15 @@ func processEvents() bool {
 					Paused = !Paused
 				case sdl.SCANCODE_F6, sdl.SCANCODE_F10:
 					if Paused {
-						VM.Step()
+						if VM.StepOverBreakpoint() {
+							Paused = false
+						} else {
+							VM.Step()
+						}
 					}
 				case sdl.SCANCODE_F7, sdl.SCANCODE_F11:
 					if Paused {
-						VM.SetOverBreakpoint()
-						Paused = false
+						VM.Step()
 					}
 				case sdl.SCANCODE_F8:
 					if Paused  {
@@ -368,8 +373,8 @@ func help() {
 	Debug.Log("F3          | Open ROM/C8 assembler")
 	Debug.Log("F4          | Save ROM")
 	Debug.Log("F5          | Pause/break")
-	Debug.Log("F6          | Step")
-	Debug.Log("F7          | Step over")
+	Debug.Log("F6 / F10    | Step over")
+	Debug.Log("F7 / F11    | Step into")
 	Debug.Log("F8          | Debug memory")
 	Debug.Log("F9          | Set breakpoint")
 }
