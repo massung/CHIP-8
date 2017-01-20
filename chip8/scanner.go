@@ -43,7 +43,6 @@ const (
 	TOKEN_OPERAND
 	TOKEN_V
 	TOKEN_R
-	TOKEN_B
 	TOKEN_I
 	TOKEN_INDIRECT_I
 	TOKEN_F
@@ -58,6 +57,9 @@ const (
 	TOKEN_EQU
 	TOKEN_VAR
 	TOKEN_HERE
+	TOKEN_SUPER
+	TOKEN_EXTENDED
+	TOKEN_ASCII
 )
 
 /// A parsed, lexical token.
@@ -117,7 +119,7 @@ func (s *tokenScanner) scanToken() token {
 		return s.scanDecLit()
 	case c >= 'A' && c <= 'Z':
 		return s.scanIdentifier()
-	case c == '"' || c == '\'':
+	case c == '"' || c == '\'' || c == '`':
 		return s.scanString(c)
 	}
 
@@ -268,21 +270,21 @@ func (s *tokenScanner) scanIdentifier() token {
 		return token{typ: TOKEN_R}
 	case "I":
 		return token{typ: TOKEN_I}
-	case "B":
-		return token{typ: TOKEN_B}
 	case "F":
 		return token{typ: TOKEN_F}
 	case "HF":
 		return token{typ: TOKEN_HF}
 	case "K":
 		return token{typ: TOKEN_K}
+	case "A":
+		return token{typ: TOKEN_ASCII}
 	case "D", "DT":
 		return token{typ: TOKEN_DT}
 	case "S", "ST":
 		return token{typ: TOKEN_ST}
-	case "CLS", "RET", "EXIT", "LOW", "HIGH", "SCU", "SCD", "SCR", "SCL", "SYS", "JP", "CALL", "SE", "SNE", "SKP", "SKNP", "LD", "OR", "AND", "XOR", "ADD", "SUB", "SUBN", "SHR", "SHL", "RND", "DRW":
+	case "CLS", "RET", "EXIT", "LOW", "HIGH", "SCU", "SCD", "SCR", "SCL", "SYS", "JP", "CALL", "SE", "SNE", "SGT", "SLT", "SKP", "SKNP", "LD", "OR", "AND", "XOR", "ADD", "SUB", "SUBN", "MUL", "DIV", "SHR", "SHL", "BCD", "RND", "DRW":
 		return token{typ: TOKEN_INSTRUCTION, val: id}
-	case "BYTE", "WORD", "ALIGN", "PAD":
+	case "ASCII", "BYTE", "WORD", "ALIGN", "PAD":
 		return token{typ: TOKEN_INSTRUCTION, val: id}
 	case "BREAK":
 		return token{typ: TOKEN_BREAK}
@@ -292,6 +294,10 @@ func (s *tokenScanner) scanIdentifier() token {
 		return token{typ: TOKEN_EQU}
 	case "VAR":
 		return token{typ: TOKEN_VAR}
+	case "SUPER":
+		return token{typ: TOKEN_SUPER}
+	case "EXTENDED":
+		return token{typ: TOKEN_EXTENDED}
 	}
 
 	if i == 0 {

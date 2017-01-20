@@ -379,7 +379,11 @@ func processEvents() bool {
 					}
 				case sdl.SCANCODE_F7, sdl.SCANCODE_F11:
 					if Paused {
-						VM.Step()
+						if ev.Keysym.Mod&sdl.KMOD_SHIFT != 0 {
+							VM.StepOut()
+						} else {
+							VM.Step()
+						}
 					}
 				case sdl.SCANCODE_F8:
 					if Paused  {
@@ -406,7 +410,7 @@ func processEvents() bool {
 func help() {
 	Debug.Logln("Keys        | Description")
 	Debug.Log("------------+-------------------------------------")
-	Debug.Log("BACK        | Reboot (+CTRL to break on reset)")
+	Debug.Log("BACK        | Reboot (CTRL to break on reset)")
 	Debug.Log("[ / ]       | Deacrease/increase speed")
 	Debug.Log("HOME / END  | Scroll log")
 	Debug.Log("PGUP / PGDN | Scroll log")
@@ -415,7 +419,7 @@ func help() {
 	Debug.Log("F4          | Save ROM")
 	Debug.Log("F5          | Pause/break")
 	Debug.Log("F6 / F10    | Step over")
-	Debug.Log("F7 / F11    | Step into")
+	Debug.Log("F7 / F11    | Step into (SHIFT to step out)")
 	Debug.Log("F8          | Debug memory")
 	Debug.Log("F9          | Set breakpoint")
 }
@@ -474,6 +478,9 @@ func load(file string) error {
 	// log what is being loaded
 	Debug.Logln("Loading", filepath.Base(file))
 
+	// save the (attempted) loaded file
+	File = file
+
 	// attempt to assemble/load the file
 	if VM, err = chip8.LoadFile(file, ETI); err != nil {
 		Debug.Log(err.Error())
@@ -482,9 +489,6 @@ func load(file string) error {
 		VM, _ = chip8.LoadROM(chip8.Dummy, false)
 	} else {
 		Debug.Log(fmt.Sprint(VM.Size), "bytes")
-
-		// save the loaded file
-		File = file
 	}
 
 	return err

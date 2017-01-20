@@ -1,0 +1,46 @@
+; Displays all 6-bit ASCII table values to test.
+;
+; Written by Jeffrey Massung as an example.
+; Hack away and have fun!
+;
+
+        super
+        extended
+
+        ; enter high resolution mode
+        high
+        cls
+
+        ; which character to draw
+        ld          v5, 0
+
+        ; where to draw it
+        ld          v6, 0
+        ld          v7, 0
+
+        ; how far right to draw
+        ld          v8, 120
+
+        ; draw characters until at the last one
+loop    sne         v5, 64
+        exit
+
+        ; load I with the ascii value in v5, v0=length
+        ld          a, v5
+
+        ; draw the character
+        drw         v6, v7, 5
+
+        ; advance to the next character
+        add         v6, v0
+        add         v6, 1
+        add         v5, 1
+
+        ; if too far right, advance to next line
+        sgt         v6, v8
+        jp          loop
+
+        ; new line
+        ld          v6, 0
+        add         v7, 6
+        jp          loop

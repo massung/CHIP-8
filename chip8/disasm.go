@@ -80,6 +80,10 @@ func (vm *CHIP_8) Disassemble(i uint) string {
 		return fmt.Sprintf("%04X - SNE    V%X, #%02X", i, x, b)
 	} else if inst&0xF00F == 0x5000 {
 		return fmt.Sprintf("%04X - SE     V%X, V%X", i, x, y)
+	} else if inst&0xF00F == 0x5001 {
+		return fmt.Sprintf("%04X - SGT    V%X, V%X", i, x, y)
+	} else if inst&0xF00F == 0x5002 {
+		return fmt.Sprintf("%04X - SLT    V%X, V%X", i, x, y)
 	} else if inst&0xF000 == 0x6000 {
 		return fmt.Sprintf("%04X - LD     V%X, #%02X", i, x, b)
 	} else if inst&0xF000 == 0x7000 {
@@ -104,6 +108,12 @@ func (vm *CHIP_8) Disassemble(i uint) string {
 		return fmt.Sprintf("%04X - SHL    V%X", i, x)
 	} else if inst&0xF00F == 0x9000 {
 		return fmt.Sprintf("%04X - SNE    V%X, V%X", i, x, y)
+	} else if inst&0xF00F == 0x9001 {
+		return fmt.Sprintf("%04X - MUL    V%X, V%X", i, x, y)
+	} else if inst&0xF00F == 0x9002 {
+		return fmt.Sprintf("%04X - DIV    V%X, V%X", i, x, y)
+	} else if inst&0xF00F == 0x9003 {
+		return fmt.Sprintf("%04X - BCD    V%X, V%X", i, x, y)
 	} else if inst&0xF000 == 0xA000 {
 		return fmt.Sprintf("%04X - LD     I, #%04X", i, a)
 	} else if inst&0xF000 == 0xB000 {
@@ -131,7 +141,7 @@ func (vm *CHIP_8) Disassemble(i uint) string {
 	} else if inst&0xF0FF == 0xF030 {
 		return fmt.Sprintf("%04X - LD     HF, V%X", i, x)
 	} else if inst&0xF0FF == 0xF033 {
-		return fmt.Sprintf("%04X - LD     B, V%X", i, x)
+		return fmt.Sprintf("%04X - BCD    V%X", i, x)
 	} else if inst&0xF0FF == 0xF055 {
 		return fmt.Sprintf("%04X - LD     [I], V%X", i, x)
 	} else if inst&0xF0FF == 0xF065 {
@@ -140,6 +150,8 @@ func (vm *CHIP_8) Disassemble(i uint) string {
 		return fmt.Sprintf("%04X - LD     R, V%X", i, x)
 	} else if inst&0xF0FF == 0xF085 {
 		return fmt.Sprintf("%04X - LD     V%X, R", i, x)
+	} else if inst&0xF0FF == 0xF094 {
+		return fmt.Sprintf("%04X - LD     A, V%X", i, x)
 	}
 
 	// unknown instruction

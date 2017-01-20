@@ -52,6 +52,7 @@ g               equ         10
 
 ;; Initial setup for the game.
 ;;
+                super
 start           high
 
 
@@ -123,7 +124,7 @@ next_level      ld          i, level
 
                 ; Convert the level # to BCD.
                 ld          i, scratch
-                ld          b, v0
+                bcd         v0
                 ld          v2, [i]
 
                 ; Display the level number.
@@ -167,7 +168,7 @@ draw_score      ld          i, score_text
 
                 ; Convert the thousands and hundreds to BCD.
                 ld          i, scratch
-                ld          b, v4
+                bcd         v4
                 ld          v2, [i]
 
                 ; Display the number.
@@ -181,7 +182,7 @@ draw_score      ld          i, score_text
 
                 ; Convert the tens and ones to BCD.
                 ld          i, scratch
-                ld          b, v3
+                bcd         v3
                 ld          v2, [i]
 
                 ; Display the number.

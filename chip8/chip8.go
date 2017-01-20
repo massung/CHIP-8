@@ -523,6 +523,10 @@ func (vm *CHIP_8) Step() error {
 		vm.skipIfNot(x, b)
 	} else if inst&0xF00F == 0x5000 {
 		vm.skipIfXY(x, y)
+	} else if inst&0xF00F == 0x5001 {
+		vm.skipIfGreater(x, y)
+	} else if inst&0xF00F == 0x5002 {
+		vm.skipIfLess(x, y)
 	} else if inst&0xF000 == 0x6000 {
 		vm.loadX(x, b)
 	} else if inst&0xF000 == 0x7000 {
@@ -547,6 +551,12 @@ func (vm *CHIP_8) Step() error {
 		vm.shl(x)
 	} else if inst&0xF00F == 0x9000 {
 		vm.skipIfNotXY(x, y)
+	} else if inst&0xF00F == 0x9001 {
+		vm.mulXY(x, y)
+	} else if inst&0xF00F == 0x9002 {
+		vm.divXY(x, y)
+	} else if inst&0xF00F == 0x9003 {
+		vm.loadB_16(x, y)
 	} else if inst&0xF000 == 0xA000 {
 		vm.loadI(a)
 	} else if inst&0xF000 == 0xB000 {
@@ -585,6 +595,8 @@ func (vm *CHIP_8) Step() error {
 		vm.storeR(x)
 	} else if inst&0xF0FF == 0xF085 {
 		vm.readR(x)
+	} else if inst&0xF0FF == 0xF094 {
+		vm.loadASCII(x)
 	} else {
 		return fmt.Errorf("Invalid opcode: %04X", inst)
 	}
@@ -600,6 +612,21 @@ func (vm *CHIP_8) Step() error {
 			}
 
 			return b
+		}
+	}
+
+	return nil
+}
+
+/// StepOut executes instructions until a RET instruction is executed.
+///
+func (vm *CHIP_8) StepOut() error {
+	sp := vm.SP
+
+	// if not in a subroutine, don't do anything
+	for sp > 0 && vm.SP >= sp {
+		if err := vm.Step(); err != nil {
+			return err
 		}
 	}
 
@@ -783,6 +810,22 @@ func (vm *CHIP_8) skipIfNotXY(x, y uint) {
 	}
 }
 
+/// Skip next instruction if vx > vy.
+///
+func (vm *CHIP_8) skipIfGreater(x, y uint) {
+	if vm.V[x] > vm.V[y] {
+		vm.PC += 2
+	}
+}
+
+/// Skip next instruction if vx < vy.
+///
+func (vm *CHIP_8) skipIfLess(x, y uint) {
+	if vm.V[x] < vm.V[y] {
+		vm.PC += 2
+	}
+}
+
 /// Skip next instruction if key(vx) is pressed.
 ///
 func (vm *CHIP_8) skipIfPressed(x uint) {
@@ -841,11 +884,11 @@ func (vm *CHIP_8) loadI(address uint) {
 	vm.I = address
 }
 
-/// Load Address with BCD of vx.
+/// Load address with 8-bit, BCD of vx.
 ///
 func (vm *CHIP_8) loadB(x uint) {
-	n := uint16(vm.V[x])
-	b := uint16(0)
+	n := uint(vm.V[x])
+	b := uint(0)
 
 	// perform 8 shifts
 	for i := uint(0); i < 8; i++ {
@@ -869,16 +912,76 @@ func (vm *CHIP_8) loadB(x uint) {
 	vm.Memory[vm.I+2] = byte(b>>0) & 0xF
 }
 
+/// Load address with 16-bit, BCD of vx, vy.
+///
+func (vm *CHIP_8) loadB_16(x, y uint) {
+	n := uint(vm.V[x]<<8) | uint(vm.V[y])
+	b := uint(0)
+
+	// perform 16 shifts
+	for i := uint(0); i < 16; i++ {
+		if (b>>0)&0xF >= 5 {
+			b += 3
+		}
+		if (b>>4)&0xF >= 5 {
+			b += 3 << 4
+		}
+		if (b>>8)&0xF >= 5 {
+			b += 3 << 8
+		}
+		if (b>>12)&0xF >= 5 {
+			b += 3 << 12
+		}
+		if (b>>16)&0xF >= 5 {
+			b += 3 << 16
+		}
+
+		// apply shift, pull next bit
+		b = (b << 1) | (n >> (15 - i) & 1)
+	}
+
+	// write to memory
+	vm.Memory[vm.I+0] = byte(b>>16) & 0xF
+	vm.Memory[vm.I+1] = byte(b>>12) & 0xF
+	vm.Memory[vm.I+2] = byte(b>>8) & 0xF
+	vm.Memory[vm.I+3] = byte(b>>4) & 0xF
+	vm.Memory[vm.I+4] = byte(b>>0) & 0xF
+}
+
 /// Load font sprite for vx into I.
 ///
 func (vm *CHIP_8) loadF(x uint) {
-	vm.I = uint(vm.V[x]) * 5
+	vm.I = uint(vm.V[x])*5
 }
 
 /// Load high font sprite for vx into I.
 ///
 func (vm *CHIP_8) loadHF(x uint) {
 	vm.I = 0x50 + uint(vm.V[x])*10
+}
+
+/// Load ASCII font sprite for vx into I and length into v0.
+///
+func (vm *CHIP_8) loadASCII(x uint) {
+	c := 0x100 + int(vm.V[x])*3
+
+	// AB CD EF are the bytes in memory, but are unpacked as
+	// EF CD AB where E is the length and F-B are the rows
+	//
+	ab, cd, ef := vm.Memory[c], vm.Memory[c+1], vm.Memory[c+2]
+
+	// write the byte patters of each nibble to character memory
+	vm.Memory[0x1C0] = vm.Memory[0xF0 + (ef&0xF)]
+	vm.Memory[0x1C1] = vm.Memory[0xF0 + (cd>>4)]
+	vm.Memory[0x1C2] = vm.Memory[0xF0 + (cd&0xF)]
+	vm.Memory[0x1C3] = vm.Memory[0xF0 + (ab>>4)]
+	vm.Memory[0x1C4] = vm.Memory[0xF0 + (ab&0xF)]
+
+	// set the length to v0
+	vm.V[0] = ef>>4
+
+	// point I to where the ascii character was unpacked
+	vm.I = 0x1C0
 }
 
 /// Bitwise or vx with vy into vx.
@@ -965,6 +1068,21 @@ func (vm *CHIP_8) subYX(x, y uint) {
 	}
 
 	vm.V[x] = vm.V[y] - vm.V[x]
+}
+
+/// Multiply vx and vy; vf contains the most significant byte.
+///
+func (vm *CHIP_8) mulXY(x, y uint) {
+	r := uint(vm.V[x]) * uint(vm.V[y])
+
+	// most significant byte to vf
+	vm.V[0xF], vm.V[x] = byte(r>>8 & 0xFF), byte(r&0xFF)
+}
+
+/// Divide vx by vy; vf is set to the remainder.
+///
+func (vm *CHIP_8) divXY(x, y uint) {
+	vm.V[x], vm.V[0xF] = vm.V[x]/vm.V[y], vm.V[x]%vm.V[y]
 }
 
 /// Load a random number & n into vx.

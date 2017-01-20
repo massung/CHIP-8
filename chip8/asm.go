@@ -25,6 +25,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"strings"
 )
 
 /// Assembly is a completely assembled source file.
@@ -45,7 +46,25 @@ type Assembly struct {
 	/// Addresses with unresolved labels.
 	///
 	Unresolved map[int]string
+
+	/// Base address the ROM begins at (0x200 or 0x600 for ETI).
+	///
+	Base int
+
+	/// Super is true if using additional super CHIP-8 instructions.
+	///
+	Super bool
+
+	/// Extended is true if using additional CHIP-8E instructions.
+	///
+	Extended bool
 }
+
+var (
+	/// AsciiTable is the 6-bit ASCII table for CHIP-8E.
+	///
+	AsciiTable = `@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_ !"#$%&'()*+,-./0123456789:;<=>?`
+)
 
 /// Assemble an input CHIP-8 source code file.
 ///
@@ -66,6 +85,7 @@ func Assemble(program []byte, eti bool) (out *Assembly, err error) {
 		Breakpoints: make([]Breakpoint, 0, 10),
 		Labels: make(map[string]token),
 		Unresolved: make(map[int]string),
+		Base: base,
 	}
 
 	// no error
@@ -155,6 +175,10 @@ func (a *Assembly) assemble(s *tokenScanner) {
 	switch {
 	case t.typ == TOKEN_INSTRUCTION:
 		a.assembleInstruction(t.val.(string), s)
+	case t.typ == TOKEN_SUPER:
+		a.assembleSuper(s)
+	case t.typ == TOKEN_EXTENDED:
+		a.assembleExtended(s)
 	case t.typ == TOKEN_BREAK:
 		a.assembleBreakpoint(s, false)
 	case t.typ == TOKEN_ASSERT:
@@ -211,6 +235,36 @@ func (a *Assembly) assembleBreakpoint(s *tokenScanner, conditional bool) {
 	})
 }
 
+/// Allow the assembler to assemble super, SCHIP-8 instructions.
+///
+func (a *Assembly) assembleSuper(s *tokenScanner) {
+	if s.scanToken().typ != TOKEN_END {
+		panic("unexpected token")
+	}
+
+	if len(a.ROM) > a.Base {
+		panic("super must come before instructions")
+	}
+
+	// enter super instructions mode
+	a.Super = true
+}
+
+/// Allow the assembler to assemble extended, CHIP-8E instructions.
+///
+func (a *Assembly) assembleExtended(s *tokenScanner) {
+	if s.scanToken().typ != TOKEN_END {
+		panic("unexpected token")
+	}
+
+	if len(a.ROM) > a.Base {
+		panic("extended must come before instructions")
+	}
+
+	// enter extended instructions mode
+	a.Extended = true
+}
+
 /// Compile a single instruction into the assembly.
 ///
 func (a *Assembly) assembleInstruction(i string, s *tokenScanner) {
@@ -245,6 +299,10 @@ func (a *Assembly) assembleInstruction(i string, s *tokenScanner) {
 		a.ROM = append(a.ROM, a.assembleSE(tokens)...)
 	case "SNE":
 		a.ROM = append(a.ROM, a.assembleSNE(tokens)...)
+	case "SGT":
+		a.ROM = append(a.ROM, a.assembleSGT(tokens)...)
+	case "SLT":
+		a.ROM = append(a.ROM, a.assembleSLT(tokens)...)
 	case "SKP":
 		a.ROM = append(a.ROM, a.assembleSKP(tokens)...)
 	case "SKNP":
@@ -265,12 +323,20 @@ func (a *Assembly) assembleInstruction(i string, s *tokenScanner) {
 		a.ROM = append(a.ROM, a.assembleSUB(tokens)...)
 	case "SUBN":
 		a.ROM = append(a.ROM, a.assembleSUBN(tokens)...)
+	case "MUL":
+		a.ROM = append(a.ROM, a.assembleMUL(tokens)...)
+	case "DIV":
+		a.ROM = append(a.ROM, a.assembleDIV(tokens)...)
+	case "BCD":
+		a.ROM = append(a.ROM, a.assembleBCD(tokens)...)
 	case "RND":
 		a.ROM = append(a.ROM, a.assembleRND(tokens)...)
 	case "DRW":
 		a.ROM = append(a.ROM, a.assembleDRW(tokens)...)
 	case "LD":
 		a.ROM = append(a.ROM, a.assembleLD(tokens)...)
+	case "ASCII":
+		a.ROM = append(a.ROM, a.assembleASCII(tokens)...)
 	case "BYTE":
 		a.ROM = append(a.ROM, a.assembleBYTE(tokens)...)
 	case "WORD":
@@ -349,8 +415,10 @@ func (a *Assembly) assembleRET(tokens []token) []byte {
 /// Assemble an EXIT instruction.
 ///
 func (a *Assembly) assembleEXIT(tokens []token) []byte {
-	if len(tokens) == 0 {
-		return []byte{0x00, 0xFD}
+	if a.Super {
+		if len(tokens) == 0 {
+			return []byte{0x00, 0xFD}
+		}
 	}
 
 	panic("illegal instruction")
@@ -359,8 +427,10 @@ func (a *Assembly) assembleEXIT(tokens []token) []byte {
 /// Assemble a LOW instruction.
 ///
 func (a *Assembly) assembleLOW(tokens []token) []byte {
-	if len(tokens) == 0 {
-		return []byte{0x00, 0xFE}
+	if a.Super {
+		if len(tokens) == 0 {
+			return []byte{0x00, 0xFE}
+		}
 	}
 
 	panic("illegal instruction")
@@ -369,8 +439,10 @@ func (a *Assembly) assembleLOW(tokens []token) []byte {
 /// Assemble a HIGH instruction.
 ///
 func (a *Assembly) assembleHIGH(tokens []token) []byte {
-	if len(tokens) == 0 {
-		return []byte{0x00, 0xFF}
+	if a.Super {
+		if len(tokens) == 0 {
+			return []byte{0x00, 0xFF}
+		}
 	}
 
 	panic("illegal instruction")
@@ -379,11 +451,13 @@ func (a *Assembly) assembleHIGH(tokens []token) []byte {
 /// Assemble a SCU instruction.
 ///
 func (a *Assembly) assembleSCU(tokens []token) []byte {
-	if ops, ok := a.assembleOperands(tokens, TOKEN_LIT); ok {
-		n := ops[0].val.(int)
+	if a.Super {
+		if ops, ok := a.assembleOperands(tokens, TOKEN_LIT); ok {
+			n := ops[0].val.(int)
 
-		if n < 0x10 {
-			return []byte{0x00, 0xB0 | byte(n)}
+			if n < 0x10 {
+				return []byte{0x00, 0xB0 | byte(n)}
+			}
 		}
 	}
 
@@ -393,11 +467,13 @@ func (a *Assembly) assembleSCU(tokens []token) []byte {
 /// Assemble a SCD instruction.
 ///
 func (a *Assembly) assembleSCD(tokens []token) []byte {
-	if ops, ok := a.assembleOperands(tokens, TOKEN_LIT); ok {
-		n := ops[0].val.(int)
+	if a.Super {
+		if ops, ok := a.assembleOperands(tokens, TOKEN_LIT); ok {
+			n := ops[0].val.(int)
 
-		if n < 0x10 {
-			return []byte{0x00, 0xC0 | byte(n)}
+			if n < 0x10 {
+				return []byte{0x00, 0xC0 | byte(n)}
+			}
 		}
 	}
 
@@ -407,8 +483,10 @@ func (a *Assembly) assembleSCD(tokens []token) []byte {
 /// Assemble a SCR instruction.
 ///
 func (a *Assembly) assembleSCR(tokens []token) []byte {
-	if len(tokens) == 0 {
-		return []byte{0x00, 0xFB}
+	if a.Super {
+		if len(tokens) == 0 {
+			return []byte{0x00, 0xFB}
+		}
 	}
 
 	panic("illegal instruction")
@@ -417,14 +495,16 @@ func (a *Assembly) assembleSCR(tokens []token) []byte {
 /// Assemble a SCL instruction.
 ///
 func (a *Assembly) assembleSCL(tokens []token) []byte {
-	if len(tokens) == 0 {
-		return []byte{0x00, 0xFC}
+	if a.Super {
+		if len(tokens) == 0 {
+			return []byte{0x00, 0xFC}
+		}
 	}
 
 	panic("illegal instruction")
 }
 
-/// Assemble a SYS instruction
+/// Assemble a SYS instruction.
 ///
 func (a *Assembly) assembleSYS(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_LIT); ok {
@@ -438,7 +518,7 @@ func (a *Assembly) assembleSYS(tokens []token) []byte {
 	panic("illegal instruction")
 }
 
-/// Assemble a JP instruction
+/// Assemble a JP instruction.
 ///
 func (a *Assembly) assembleJP(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_LIT); ok {
@@ -461,7 +541,7 @@ func (a *Assembly) assembleJP(tokens []token) []byte {
 	panic("illegal instruction")
 }
 
-/// Assemble a CALL instruction
+/// Assemble a CALL instruction.
 ///
 func (a *Assembly) assembleCALL(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_LIT); ok {
@@ -475,7 +555,7 @@ func (a *Assembly) assembleCALL(tokens []token) []byte {
 	panic("illegal instruction")
 }
 
-/// Assemble a SE instruction
+/// Assemble a SE instruction.
 ///
 func (a *Assembly) assembleSE(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_LIT); ok {
@@ -497,7 +577,7 @@ func (a *Assembly) assembleSE(tokens []token) []byte {
 	panic("illegal instruction")
 }
 
-/// Assemble a SNE instruction
+/// Assemble a SNE instruction.
 ///
 func (a *Assembly) assembleSNE(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_LIT); ok {
@@ -519,7 +599,37 @@ func (a *Assembly) assembleSNE(tokens []token) []byte {
 	panic("illegal instruction")
 }
 
-/// Assemble a SKP instruction
+/// Assemble a SGT instruction.
+///
+func (a *Assembly) assembleSGT(tokens []token) []byte {
+	if a.Extended {
+		if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_V); ok {
+			x := ops[0].val.(int)
+			y := ops[1].val.(int)
+
+			return []byte{0x50 | byte(x), byte(y << 4) | 0x01}
+		}
+	}
+
+	panic("illegal instruction")
+}
+
+/// Assemble a SLT instruction.
+///
+func (a *Assembly) assembleSLT(tokens []token) []byte {
+	if a.Extended {
+		if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_V); ok {
+			x := ops[0].val.(int)
+			y := ops[1].val.(int)
+
+			return []byte{0x50 | byte(x), byte(y << 4) | 0x02}
+		}
+	}
+
+	panic("illegal instruction")
+}
+
+/// Assemble a SKP instruction.
 ///
 func (a *Assembly) assembleSKP(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_V); ok {
@@ -531,7 +641,7 @@ func (a *Assembly) assembleSKP(tokens []token) []byte {
 	panic("illegal instruction")
 }
 
-/// Assemble a SKNP instruction
+/// Assemble a SKNP instruction.
 ///
 func (a *Assembly) assembleSKNP(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_V); ok {
@@ -543,7 +653,7 @@ func (a *Assembly) assembleSKNP(tokens []token) []byte {
 	panic("illegal instruction")
 }
 
-/// Assemble a OR instruction
+/// Assemble a OR instruction.
 ///
 func (a *Assembly) assembleOR(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_V); ok {
@@ -556,7 +666,7 @@ func (a *Assembly) assembleOR(tokens []token) []byte {
 	panic("illegal instruction")
 }
 
-/// Assemble a AND instruction
+/// Assemble a AND instruction.
 ///
 func (a *Assembly) assembleAND(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_V); ok {
@@ -569,7 +679,7 @@ func (a *Assembly) assembleAND(tokens []token) []byte {
 	panic("illegal instruction")
 }
 
-/// Assemble a XOR instruction
+/// Assemble a XOR instruction.
 ///
 func (a *Assembly) assembleXOR(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_V); ok {
@@ -582,7 +692,7 @@ func (a *Assembly) assembleXOR(tokens []token) []byte {
 	panic("illegal instruction")
 }
 
-/// Assemble a SHR instruction
+/// Assemble a SHR instruction.
 ///
 func (a *Assembly) assembleSHR(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_V); ok {
@@ -594,7 +704,7 @@ func (a *Assembly) assembleSHR(tokens []token) []byte {
 	panic("illegal instruction")
 }
 
-/// Assemble a SHL instruction
+/// Assemble a SHL instruction.
 ///
 func (a *Assembly) assembleSHL(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_V); ok {
@@ -606,7 +716,7 @@ func (a *Assembly) assembleSHL(tokens []token) []byte {
 	panic("illegal instruction")
 }
 
-/// Assemble a ADD instruction
+/// Assemble a ADD instruction.
 ///
 func (a *Assembly) assembleADD(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_LIT); ok {
@@ -634,7 +744,7 @@ func (a *Assembly) assembleADD(tokens []token) []byte {
 	panic("illegal instruction")
 }
 
-/// Assemble a SUB instruction
+/// Assemble a SUB instruction.
 ///
 func (a *Assembly) assembleSUB(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_V); ok {
@@ -647,7 +757,7 @@ func (a *Assembly) assembleSUB(tokens []token) []byte {
 	panic("illegal instruction")
 }
 
-/// Assemble a SUBN instruction
+/// Assemble a SUBN instruction.
 ///
 func (a *Assembly) assembleSUBN(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_V); ok {
@@ -660,7 +770,58 @@ func (a *Assembly) assembleSUBN(tokens []token) []byte {
 	panic("illegal instruction")
 }
 
-/// Assemble a RND instruction
+/// Assemble a MUL instruction.
+///
+func (a *Assembly) assembleMUL(tokens []token) []byte {
+	if a.Extended {
+		if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_V); ok {
+			x := ops[0].val.(int)
+			y := ops[1].val.(int)
+
+			return []byte{0x90 | byte(x), byte(y << 4) | 0x01}
+		}
+	}
+
+	panic("illegal instruction")
+}
+
+/// Assemble a DIV instruction.
+///
+func (a *Assembly) assembleDIV(tokens []token) []byte {
+	if a.Extended {
+		if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_V); ok {
+			x := ops[0].val.(int)
+			y := ops[1].val.(int)
+
+			return []byte{0x90 | byte(x), byte(y << 4) | 0x02}
+		}
+	}
+
+	panic("illegal instruction")
+}
+
+/// Assemble a BCD instruction.
+///
+func (a *Assembly) assembleBCD(tokens []token) []byte {
+	if ops, ok := a.assembleOperands(tokens, TOKEN_V); ok {
+		x := ops[0].val.(int)
+
+		return []byte{0xF0|byte(x), 0x33}
+	}
+
+	if a.Extended {
+		if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_V); ok {
+			x := ops[0].val.(int)
+			y := ops[1].val.(int)
+
+			return []byte{0x90|byte(x), byte(y << 4)|0x03}
+		}
+	}
+
+	panic("illegal instruction")
+}
+
+/// Assemble a RND instruction.
 ///
 func (a *Assembly) assembleRND(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_LIT); ok {
@@ -675,7 +836,7 @@ func (a *Assembly) assembleRND(tokens []token) []byte {
 	panic("illegal instruction")
 }
 
-/// Assemble a DRW instruction
+/// Assemble a DRW instruction.
 ///
 func (a *Assembly) assembleDRW(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_V, TOKEN_LIT); ok {
@@ -691,7 +852,7 @@ func (a *Assembly) assembleDRW(tokens []token) []byte {
 	panic("illegal instruction")
 }
 
-/// Assemble a LD instruction
+/// Assemble a LD instruction.
 ///
 func (a *Assembly) assembleLD(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_LIT); ok {
@@ -748,18 +909,6 @@ func (a *Assembly) assembleLD(tokens []token) []byte {
 		return []byte{0xF0|byte(x), 0x29}
 	}
 
-	if ops, ok := a.assembleOperands(tokens, TOKEN_HF, TOKEN_V); ok {
-		x := ops[1].val.(int)
-
-		return []byte{0xF0|byte(x), 0x30}
-	}
-
-	if ops, ok := a.assembleOperands(tokens, TOKEN_B, TOKEN_V); ok {
-		x := ops[1].val.(int)
-
-		return []byte{0xF0|byte(x), 0x33}
-	}
-
 	if ops, ok := a.assembleOperands(tokens, TOKEN_INDIRECT_I, TOKEN_V); ok {
 		x := ops[1].val.(int)
 
@@ -772,26 +921,72 @@ func (a *Assembly) assembleLD(tokens []token) []byte {
 		return []byte{0xF0|byte(x), 0x65}
 	}
 
-	if ops, ok := a.assembleOperands(tokens, TOKEN_R, TOKEN_V); ok {
-		x := ops[1].val.(int)
+	if a.Super {
+		if ops, ok := a.assembleOperands(tokens, TOKEN_HF, TOKEN_V); ok {
+			x := ops[1].val.(int)
 
-		if x < 8 {
-			return []byte{0xF0|byte(x), 0x75}
+			return []byte{0xF0 | byte(x), 0x30}
+		}
+
+		if ops, ok := a.assembleOperands(tokens, TOKEN_R, TOKEN_V); ok {
+			x := ops[1].val.(int)
+
+			if x < 8 {
+				return []byte{0xF0 | byte(x), 0x75}
+			}
+		}
+
+		if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_R); ok {
+			x := ops[0].val.(int)
+
+			if x < 8 {
+				return []byte{0xF0 | byte(x), 0x85}
+			}
 		}
 	}
 
-	if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_R); ok {
-		x := ops[0].val.(int)
+	if a.Extended {
+		if ops, ok := a.assembleOperands(tokens, TOKEN_ASCII, TOKEN_V); ok {
+			x := ops[1].val.(int)
 
-		if x < 8 {
-			return []byte{0xF0|byte(x), 0x85}
+			return []byte{0xF0 | byte(x), 0x94}
 		}
 	}
 
 	panic("illegal instruction")
 }
 
-/// Assemble a BYTE instruction
+/// Assemble an ASCII instruction.
+///
+func (a *Assembly) assembleASCII(tokens []token) []byte {
+	var b []byte
+
+	if !a.Extended {
+		panic("illegal directive")
+	}
+
+	// loop over all string tokens and assemble them as 6-bit ascii
+	for _, t := range tokens {
+		op := a.assembleOperand(t)
+
+		if op.typ != TOKEN_TEXT {
+			panic("expected ascii string")
+		}
+
+		// loop over each byte in the string, write the ascii table value
+		for _, c := range op.val.(string) {
+			if i := strings.IndexRune(AsciiTable, c); i < 0 {
+				panic("invalid CHIP-8E ascii character")
+			} else {
+				b = append(b, byte(i))
+			}
+		}
+	}
+
+	return b
+}
+
+/// Assemble a BYTE instruction.
 ///
 func (a *Assembly) assembleBYTE(tokens []token) []byte {
 	b := make([]byte, 0)
@@ -815,7 +1010,7 @@ func (a *Assembly) assembleBYTE(tokens []token) []byte {
 	return b
 }
 
-/// Assemble a WORD instruction
+/// Assemble a WORD instruction.
 ///
 func (a *Assembly) assembleWORD(tokens []token) []byte {
 	b := make([]byte, 0)
@@ -837,7 +1032,7 @@ func (a *Assembly) assembleWORD(tokens []token) []byte {
 	return b
 }
 
-/// Assemble an ALIGN instruction
+/// Assemble an ALIGN instruction.
 ///
 func (a *Assembly) assembleALIGN(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_LIT); ok {
@@ -855,7 +1050,7 @@ func (a *Assembly) assembleALIGN(tokens []token) []byte {
 	panic("illegal alignment")
 }
 
-/// Assemble an PAD instruction
+/// Assemble an PAD instruction.
 ///
 func (a *Assembly) assemblePAD(tokens []token) []byte {
 	if ops, ok := a.assembleOperands(tokens, TOKEN_LIT); ok {
