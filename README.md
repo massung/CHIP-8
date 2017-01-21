@@ -142,8 +142,8 @@ Here is the CHIP-8 instructions. The Super CHIP-8 instructions follow after the 
 | 00E0   | CLS           | Clear video memory
 | 00EE   | RET           | Return from subroutine
 | 0NNN   | SYS NNN       | Call CDP1802 subroutine at NNN
-| 1NNN   | CALL NNN      | Call CHIP-8 subroutine at NNN
-| 2NNN   | JP NNN        | Jump to address NNN
+| 2NNN   | CALL NNN      | Call CHIP-8 subroutine at NNN
+| 1NNN   | JP NNN        | Jump to address NNN
 | BNNN   | JP V0, NNN    | Jump to address NNN + V0
 | 3XNN   | SE VX, NN     | Skip next instruction if VX == NN
 | 4XNN   | SNE VX, NN    | Skip next instruction if VX != NN
