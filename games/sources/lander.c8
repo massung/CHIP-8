@@ -467,22 +467,17 @@ land            call        hide_lander
                 add         y, -1
                 call        draw_lander
 
-                ; Don't modify where the lander is.
-                ld          v1, x
-
                 ; Is the lander not on the platform?
-                sub         v1, plat_x   ; is x >= plat_x
-                se          vf, 1
+                add         plat_x, -1
+                sgt         x, plat_x
                 jp          crash
-                ld          v0, 4
-                sub         v1, v0       ; is x <= 4
-                se          vf, 0
+                add         plat_x, 6
+                slt         x, plat_x
                 jp          crash
 
                 ; Is VY too fast?
-                ld          v0, 14
-                sub         vy, v0      ; is vy <= v0?
-                se          vf, 0
+                ld          v0, 12
+                slt         vy, v0
                 jp          crash
 
                 ; Take the absolute value of VX.
@@ -498,8 +493,7 @@ land            call        hide_lander
 
                 ; Is VX too fast?
 skip_neg        ld          v0, 8
-                sub         v0, vx
-                se          vf, 1
+                slt         vx, v0
                 jp          crash
 
                 ; Add points just for landing.
