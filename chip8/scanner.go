@@ -388,5 +388,8 @@ func (s *tokenScanner) scanString(term byte) token {
 		s.pos++
 	}
 
-	return token{typ: TOKEN_TEXT, val: string(s.bytes[i:s.pos])}
+	// advance past the terminator
+	s.pos += 1
+
+	return token{typ: TOKEN_TEXT, val: string(s.bytes[i:s.pos-1])}
 }
