@@ -195,16 +195,16 @@ To use the above instructions, they need to be enabled with the `SUPER` directiv
 
 In addition to the regular CHIP-8 and CHIP-48 instructions, there was also an extended instruction set (the CHIP-8E) added in 1979 by Paul Moews. These are very nice to have, and not used in any ROMs that I've seen online. However, this assembler supports them if turned on using the `EXTENDED` directive.
 
-Using the `EXTENDED` instruction set will likely ensure that your ROM will not work with any other CHIP-8 emulator on actual hardware. And, *technically*, the `SUPER` and `EXTENDED` directives *should* be mutually exclusive as there is no hardware that supports both of them (the CHIP-48 was exclusively for HP-48 calculators and CHIP-8E was a one-off change to the CFP1802 interpreter for a few games). But, this assembler allows you to use both and the emulator does't care either.
+Using the `EXTENDED` instruction set will likely ensure that your ROM will not work with any other CHIP-8 emulator on actual hardware. And, *technically*, the `SUPER` and `EXTENDED` directives *should* be mutually exclusive as there is no hardware that supports both of them (the CHIP-48 was exclusively for HP-48 calculators and CHIP-8E was a one-off change to the COSMAC ELF interpreter for a few games). But, this assembler allows you to use both and the emulator does't care either.
 
 | Opcode | Mnemonic      | Description
 |:-------|:--------------|:---------------------------------------------------------------
 | 5XY1   | SGT VX, VY    | Skip next instruction if VX > VY
 | 5XY2   | SLT VX, VY    | Skip next instruction if VX < VY
 | 9XY1   | MUL VX, VY    | VX * VY; VF contains the most significant byte, VX contains the least significant
-| 9XY2   | DIV VX, VY    | VX / VY; VF contains the remainder
+| 9XY2   | DIV VX, VY    | VX / VY; VF contains the remainder and VX contains the quotient
 | 9XY3   | BCD VX, VY    | Store BCD representation of the 16-bit word VX, VY (where VX is the most significant byte) at I through I+4; I remains unchanged
-| FX94   | LD A, VX      | Load I with the font sprite of the 6-bit ASCII value found in VX; V0 is set to the symbol length
+| FX94   | LD A, VX      | Load I with the font sprite of the 6-bit ASCII value found in VX; V0 is set to the symbol length (*** see note)
 
 It should be noted that the CHIP-8E also had a `DISP` instruction which output the value of `VX` to the hex display. That instruction is **not** supported, because the opcode is the same as a CHIP-48 instruction, and it is redundant as this app contains a debugger and all registers are visible at all times.
 
@@ -213,6 +213,8 @@ _(\*): This is implementation-dependent. Originally the CDP1802 CHIP-8 interpret
 _(\*\*): So, in the original CHIP-8, the shift opcodes were actually intended to be `VX = VY shift 1`. But somewhere along the way this was dropped and shortened to just be `VX = VX shift 1`. No ROMS or emulators I could find implemented the original CHIP-8 shift instructions, and so neither does this one. However, the assembler will always write out a correct instruction so that any future emulators can implement the shift either way and it will work._
 
 _(\*\*\*): When implementing 16x16 sprite drawing, note that the sprites are drawn row major. The first two bytes make up the first row, the next two bytes the second row, etc._
+
+_(\*\*\*\*): The ASCII font is a "compressed", 6-bit font (64 characters). Use the `ASCII` directive to convert a text string and write it to the binary. If you'd like to see what the font looks like, load and run [games/sources/ascii.c8](games/sources/ascii.c8)._
 
 ### Directives
 
