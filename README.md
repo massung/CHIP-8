@@ -56,7 +56,8 @@ Once launched simply drag a ROM or C8 source file into the app to load it. You c
 |:------------------|:-----------------
 | `F5`              | Pause/break emulation
 | `F6`              | Step over
-| `F7`              | Step into (`SHIFT` to step out)
+| `F7`              | Step into
+| `SHIFT`+`F7`      | Step out
 | `F8`              | Dump memory at `I` register
 | `F9`              | Toggle breakpoint
 
