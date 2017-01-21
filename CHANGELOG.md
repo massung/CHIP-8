@@ -16,6 +16,7 @@ ___Additions___
 * Added `EXTENDED` directive, required to use CHIP-8E instructions.
 * Added `ASCII` directive, for use with CHIP-8E `LD A,VX` instruction.
 * Added use of back-quote (`) for text strings.
+* Added Step Out functionality (`SHIFT`+`F7`) to debugger.
 
 ___Breaking Changes___
 
