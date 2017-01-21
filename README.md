@@ -204,7 +204,7 @@ Using the `EXTENDED` instruction set will likely ensure that your ROM will not w
 | 9XY1   | MUL VX, VY    | VX * VY; VF contains the most significant byte, VX contains the least significant
 | 9XY2   | DIV VX, VY    | VX / VY; VF contains the remainder and VX contains the quotient
 | 9XY3   | BCD VX, VY    | Store BCD representation of the 16-bit word VX, VY (where VX is the most significant byte) at I through I+4; I remains unchanged
-| FX94   | LD A, VX      | Load I with the font sprite of the 6-bit ASCII value found in VX; V0 is set to the symbol length (*** see note)
+| FX94   | LD A, VX      | Load I with the font sprite of the 6-bit ASCII value found in VX; V0 is set to the symbol length (**** see note)
 
 It should be noted that the CHIP-8E also had a `DISP` instruction which output the value of `VX` to the hex display. That instruction is **not** supported, because the opcode is the same as a CHIP-48 instruction, and it is redundant as this app contains a debugger and all registers are visible at all times.
 
