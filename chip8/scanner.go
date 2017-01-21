@@ -44,7 +44,7 @@ const (
 	TOKEN_V
 	TOKEN_R
 	TOKEN_I
-	TOKEN_INDIRECT_I
+	TOKEN_EFFECTIVE_ADDRESS
 	TOKEN_F
 	TOKEN_HF
 	TOKEN_K
@@ -106,7 +106,7 @@ func (s *tokenScanner) scanToken() token {
 	case c == ';':
 		return s.scanToEnd()
 	case c == '[':
-		return s.scanIndirect()
+		return s.scanEffectiveAddress()
 	case c == ',':
 		return s.scanOperand()
 	case c == '#':
@@ -196,22 +196,22 @@ func (s *tokenScanner) scanOperands() []token {
 	return tokens
 }
 
-/// Scan an indirect address of.
+/// Scan the effective address of a register (I).
 ///
-func (s *tokenScanner) scanIndirect() token {
+func (s *tokenScanner) scanEffectiveAddress() token {
 	s.pos += 1
 
-	// scan the next token to take the indirect Address of
+	// scan the next token to take the effective address
 	if t := s.scanToken(); t.typ != TOKEN_I {
 		panic("illegal indirection")
 	}
 
 	// terminate with closing bracket
 	if t := s.scanToken(); t.typ != TOKEN_CHAR || t.val.(byte) != ']' {
-		panic("illegal indirection")
+		panic("illegal effective address")
 	}
 
-	return token{typ: TOKEN_INDIRECT_I}
+	return token{typ: TOKEN_EFFECTIVE_ADDRESS}
 }
 
 /// Scan an identifier: instruction, register, or label reference.

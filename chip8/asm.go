@@ -909,13 +909,13 @@ func (a *Assembly) assembleLD(tokens []token) []byte {
 		return []byte{0xF0|byte(x), 0x29}
 	}
 
-	if ops, ok := a.assembleOperands(tokens, TOKEN_INDIRECT_I, TOKEN_V); ok {
+	if ops, ok := a.assembleOperands(tokens, TOKEN_EFFECTIVE_ADDRESS, TOKEN_V); ok {
 		x := ops[1].val.(int)
 
 		return []byte{0xF0|byte(x), 0x55}
 	}
 
-	if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_INDIRECT_I); ok {
+	if ops, ok := a.assembleOperands(tokens, TOKEN_V, TOKEN_EFFECTIVE_ADDRESS); ok {
 		x := ops[0].val.(int)
 
 		return []byte{0xF0|byte(x), 0x65}
