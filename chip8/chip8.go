@@ -76,7 +76,7 @@ type CHIP_8 struct {
 	///
 	Size int
 
-	/// I is the Address register.
+	/// I is the address register.
 	///
 	I uint
 
@@ -277,7 +277,7 @@ func (vm *CHIP_8) Reset() {
 	vm.PC = vm.Base
 	vm.SP = 0
 
-	// reset Address register
+	// reset address register
 	vm.I = 0
 
 	// reset virtual registers and user flags
@@ -333,7 +333,7 @@ func (vm *CHIP_8) DecSpeed() int {
 	return int(vm.Speed * 100 / 700)
 }
 
-/// SetBreakpoint at a ROM Address to the CHIP-8 virtual machine.
+/// SetBreakpoint at a ROM address to the CHIP-8 virtual machine.
 ///
 func (vm *CHIP_8) SetBreakpoint(b Breakpoint) {
 	if b.Address >= 0x200 && b.Address < len(vm.ROM) {
@@ -363,7 +363,7 @@ func (vm *CHIP_8) StepOverBreakpoint() bool {
 	return true
 }
 
-/// RemoveBreakpoint clears a breakpoint at a given ROM Address.
+/// RemoveBreakpoint clears a breakpoint at a given ROM address.
 ///
 func (vm *CHIP_8) RemoveBreakpoint(address int) {
 	delete(vm.Breakpoints, address)
@@ -481,7 +481,7 @@ func (vm *CHIP_8) Step() error {
 	// fetch the next instruction
 	inst := vm.fetch()
 
-	// 12-bit Address operand
+	// 12-bit address operand
 	a := inst & 0xFFF
 
 	// byte and nibble operands
@@ -653,13 +653,13 @@ func (vm *CHIP_8) cls() {
 	}
 }
 
-/// System call an RCA 1802 program at an Address.
+/// System call an RCA 1802 program at an address.
 ///
 func (vm *CHIP_8) sys(address uint) {
-	// unimplemented
+	panic("SYS calls are unimplemented")
 }
 
-/// Call a subroutine at Address.
+/// Call a subroutine at address.
 ///
 func (vm *CHIP_8) call(address uint) {
 	if int(vm.SP) >= len(vm.Stack) {
@@ -670,7 +670,7 @@ func (vm *CHIP_8) call(address uint) {
 	vm.Stack[vm.SP] = vm.PC
 	vm.SP += 1
 
-	// jump to Address
+	// jump to address
 	vm.PC = address
 }
 
@@ -766,13 +766,13 @@ func (vm *CHIP_8) scrollLeft() {
 	}
 }
 
-/// Jump to Address.
+/// Jump to address.
 ///
 func (vm *CHIP_8) jump(address uint) {
 	vm.PC = address
 }
 
-/// Jump to Address + v0.
+/// Jump to address + v0.
 ///
 func (vm *CHIP_8) jumpV0(address uint) {
 	vm.PC = address + uint(vm.V[0])
@@ -878,7 +878,7 @@ func (vm *CHIP_8) loadXK(x uint) {
 	vm.W = &vm.V[x]
 }
 
-/// Load Address register.
+/// Load address register.
 ///
 func (vm *CHIP_8) loadI(address uint) {
 	vm.I = address
