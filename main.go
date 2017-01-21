@@ -175,8 +175,8 @@ func main() {
 	initAudio()
 
 	// set processor speed and refresh rate
-	clock := time.NewTicker(time.Millisecond * 2)
-	video := time.NewTicker(time.Second / 60)
+	clock := time.NewTicker(time.Millisecond)
+	video := time.NewTicker(time.Second/60)
 
 	// notify that the main loop has started
 	Debug.Logln("Starting program; press 'H' for help")

@@ -555,8 +555,10 @@ func (vm *CHIP_8) Step() error {
 		vm.mulXY(x, y)
 	} else if inst&0xF00F == 0x9002 {
 		vm.divXY(x, y)
+	} else if inst&0xF0FF == 0xF033 {
+		vm.bcd(x)
 	} else if inst&0xF00F == 0x9003 {
-		vm.loadB_16(x, y)
+		vm.bcd16(x, y)
 	} else if inst&0xF000 == 0xA000 {
 		vm.loadI(a)
 	} else if inst&0xF000 == 0xB000 {
@@ -585,8 +587,6 @@ func (vm *CHIP_8) Step() error {
 		vm.loadF(x)
 	} else if inst&0xF0FF == 0xF030 {
 		vm.loadHF(x)
-	} else if inst&0xF0FF == 0xF033 {
-		vm.loadB(x)
 	} else if inst&0xF0FF == 0xF055 {
 		vm.saveRegs(x)
 	} else if inst&0xF0FF == 0xF065 {
@@ -886,7 +886,7 @@ func (vm *CHIP_8) loadI(address uint) {
 
 /// Load address with 8-bit, BCD of vx.
 ///
-func (vm *CHIP_8) loadB(x uint) {
+func (vm *CHIP_8) bcd(x uint) {
 	n := uint(vm.V[x])
 	b := uint(0)
 
@@ -914,8 +914,8 @@ func (vm *CHIP_8) loadB(x uint) {
 
 /// Load address with 16-bit, BCD of vx, vy.
 ///
-func (vm *CHIP_8) loadB_16(x, y uint) {
-	n := uint(vm.V[x]<<8) | uint(vm.V[y])
+func (vm *CHIP_8) bcd16(x, y uint) {
+	n := uint(vm.V[x])<<8 | uint(vm.V[y])
 	b := uint(0)
 
 	// perform 16 shifts
