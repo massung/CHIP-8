@@ -8,6 +8,10 @@ From the screen capture above you can see the disassembled program, register val
 
 CHIP-8 is written in [Go](https://golang.org/) and uses [SDL](https://www.libsdl.org/) for its rendering, input handling, and audio. It should easily run on Windows, OS X, and Linux. It - and the source code - are under the [ZLIB license](https://en.wikipedia.org/wiki/Zlib_License).
 
+## What's New?
+
+Getting the latest version? I recommend looking at the [CHANGELOG](CHANGELOG.md) file.
+
 ## Downloading
 
 You can download the latest pre-built release for your platform [here](https://github.com/massung/CHIP-8/releases).
@@ -57,6 +61,7 @@ Once launched simply drag a ROM or C8 source file into the app to load it. You c
 | `F5`              | Pause/break emulation
 | `F6`              | Step over
 | `F7`              | Step into
+| `SHIFT`+`F7`      | Step out
 | `F8`              | Dump memory at `I` register
 | `F9`              | Toggle breakpoint
 
@@ -114,7 +119,7 @@ BALL    BYTE    %.1......
         BYTE    %.1......
 ```
 
-Text literals can be added with single or double quotes, but there is no escape character. Usually this is just to add text information to the final ROM.
+Text literals can be added with single-, double-, or back-quotes, but there is no escape character. Usually this is just to add text information to the final ROM.
 
 ```
         BYTE    "A little game made by ME!"
@@ -141,8 +146,8 @@ Here is the CHIP-8 instructions. The Super CHIP-8 instructions follow after the 
 | 00E0   | CLS           | Clear video memory
 | 00EE   | RET           | Return from subroutine
 | 0NNN   | SYS NNN       | Call CDP1802 subroutine at NNN
-| 1NNN   | CALL NNN      | Call CHIP-8 subroutine at NNN
-| 2NNN   | JP NNN        | Jump to address NNN
+| 2NNN   | CALL NNN      | Call CHIP-8 subroutine at NNN
+| 1NNN   | JP NNN        | Jump to address NNN
 | BNNN   | JP V0, NNN    | Jump to address NNN + V0
 | 3XNN   | SE VX, NN     | Skip next instruction if VX == NN
 | 4XNN   | SNE VX, NN    | Skip next instruction if VX != NN
@@ -158,12 +163,11 @@ Here is the CHIP-8 instructions. The Super CHIP-8 instructions follow after the 
 | FX18   | LD ST, VX     | ST = VX
 | ANNN   | LD I, NNN     | I = NNN
 | FX29   | LD F, VX      | I = address of 4x5 font character in VX (0..F) (* see note)
-| FX33   | LD B, VX      | Store BCD representation of VX at I (100), I+1 (10), and I+2 (1); I remains unchanged
 | FX55   | LD [I], VX    | Store V0..VX (inclusive) to memory starting at I; I remains unchanged
 | FX65   | LD VX, [I]    | Load V0..VX (inclusive) from memory starting at I; I remains unchanged
 | FX1E   | ADD I, VX     | I = I + VX; VF = 1 if I > 0xFFF else 0
 | 7XNN   | ADD VX, NN    | VX = VX + NN
-| 8XY4   | ADD VX, VY    | VX = VX + VY; VF = 1 if carry else 0
+| 8XY4   | ADD VX, VY    | VX = VX + VY; VF = 1 if overflow else 0
 | 8XY5   | SUB VX, VY    | VX = VX - VY; VF = 1 if not borrow else 0
 | 8XY7   | SUBN VX, VY   | VX = VY - VX; VF = 1 if not borrow else 0
 | 8XY1   | OR VX, VY     | VX = VX OR VY
@@ -171,10 +175,11 @@ Here is the CHIP-8 instructions. The Super CHIP-8 instructions follow after the 
 | 8XY3   | XOR VX, VY    | VX = VX XOR VY
 | 8XY6   | SHR VX        | VF = LSB(VX); VX = VX >> 1 (** see note)
 | 8XYE   | SHL VX        | VF = MSB(VX); VX = VX << 1 (** see note)
+| FX33   | BCD VX        | Store BCD representation of VX at I (100), I+1 (10), and I+2 (1); I remains unchanged
 | CXNN   | RND VX, NN    | VX = RND() AND NN
 | DXYN   | DRW VX, VY, N | Draw 8xN sprite at I to VX, VY; VF = 1 if collision else 0
 
-And here are the instructions added for the Super CHIP-8 (a.k.a. CHIP-48):
+And here are the instructions added for the Super CHIP-8 (a.k.a. SCHIP-8/CHIP-48):
 
 | Opcode | Mnemonic      | Description
 |:-------|:--------------|:---------------------------------------------------------------
@@ -190,7 +195,22 @@ And here are the instructions added for the Super CHIP-8 (a.k.a. CHIP-48):
 | FX75   | LD R, VX      | Store V0..VX (inclusive) into HP-RPL user flags R0..RX (X < 8)
 | FX85   | LD VX, R      | Load V0..VX (inclusive) from HP-RPL user flags R0..RX (X < 8)
 
-Nothing special needs to be done to use the Super CHIP-8 instructions. They are just noted separately for anyone wishing to hack the code, so they are aware that they are not part of the original CHIP-8 virtual machine.
+To use the above instructions, they need to be enabled with the `SUPER` directive.
+
+In addition to the regular CHIP-8 and CHIP-48 instructions, there was also an extended instruction set (the CHIP-8E) added in 1979 by Paul Moews. These are very nice to have, and not used in any ROMs that I've seen online. However, this assembler supports them if turned on using the `EXTENDED` directive.
+
+Using the `EXTENDED` instruction set will likely ensure that your ROM will not work with any other CHIP-8 emulator on actual hardware. And, *technically*, the `SUPER` and `EXTENDED` directives *should* be mutually exclusive as there is no hardware that supports both of them (the CHIP-48 was exclusively for HP-48 calculators and CHIP-8E was a one-off change to the COSMAC ELF interpreter for a few games). But, this assembler allows you to use both and the emulator does't care either.
+
+| Opcode | Mnemonic      | Description
+|:-------|:--------------|:---------------------------------------------------------------
+| 5XY1   | SGT VX, VY    | Skip next instruction if VX > VY
+| 5XY2   | SLT VX, VY    | Skip next instruction if VX < VY
+| 9XY1   | MUL VX, VY    | VX * VY; VF contains the most significant byte, VX contains the least significant
+| 9XY2   | DIV VX, VY    | VX / VY; VF contains the remainder and VX contains the quotient
+| 9XY3   | BCD VX, VY    | Store BCD representation of the 16-bit word VX, VY (where VX is the most significant byte) at I through I+4; I remains unchanged
+| FX94   | LD A, VX      | Load I with the font sprite of the 6-bit ASCII value found in VX; V0 is set to the symbol length (**** see note)
+
+It should be noted that the CHIP-8E also had a `DISP` instruction which output the value of `VX` to the hex display. That instruction is **not** supported, because the opcode is the same as a CHIP-48 instruction, and it is redundant as this app contains a debugger and all registers are visible at all times.
 
 _(\*): This is implementation-dependent. Originally the CDP1802 CHIP-8 interpreter kept this memory somewhere else, but most emulators (including this one) put these sprites in the first 512 bytes of the program._
 
@@ -198,16 +218,21 @@ _(\*\*): So, in the original CHIP-8, the shift opcodes were actually intended to
 
 _(\*\*\*): When implementing 16x16 sprite drawing, note that the sprites are drawn row major. The first two bytes make up the first row, the next two bytes the second row, etc._
 
+_(\*\*\*\*): The ASCII font is a "compressed", 6-bit font (64 characters). Use the `ASCII` directive to convert a text string and write it to the binary. If you'd like to see what the font looks like, load and run [games/sources/ascii.c8](games/sources/ascii.c8)._
+
 ### Directives
 
 The assembler understands - beyond instructions - the following directives:
 
 | Directive    | Description
 |:-------------|:-------------------
+| `SUPER`      | The assembler will allow the use of CHIP-48 instructions.
+| `EXTENDED`   | The assembler will allow the use of CHIP-8E instructions
 | `EQU`        | Declare the label to equal a literal constant instead of the current address. Must be declared before being used.
 | `VAR`        | Declare the label to represent a general purpose, V-register instead of the current address. Must be declared before being used.
 | `BREAK`      | Create a breakpoint. No instruction is written, but the emulator will break before the next instruction is executed. All text after the directive will be output to the log.
 | `ASSERT`     | Create a conditional breakpoint. The emulator will only break if `VF` is non-zero when the assert is hit. All text after the directive will be output to the log.
+| `ASCII`      | Write a text string - converted to 6-bit ASCII characters - to the ROM.
 | `BYTE`       | Write bytes to the ROM. This can take bytes literals or text strings.
 | `WORD`       | Write 2-byte words to the ROM in MSB first byte order.
 | `ALIGN`      | Align the ROM to a power of 2 byte boundary.
@@ -224,6 +249,10 @@ When you've gotten whatever information you need, press `F5` again to continue e
 If you are debugging your own C8 assembler program, don't forget about the `BREAK` and `ASSERT` directives.
 
 _NOTE: the `DT` and `ST` registers still count down even while emulation is paused/broken. This is so the sound tone isn't constantly on while debugging and a delay would take a long time to reach zero if single stepping._
+
+## Saving ROMs
+
+While a C8 file is loaded, pressing `F4` will allow you to save the ROM file to disk. But be aware that if using the extended, CHIP-8E instructions, it's quite possible that any saved ROMs will not work with other CHIP-8 emulators. And, if using SCHIP or CHIP-8E instructions, these ROMs will not work with the original CHIP-8 interpreter if loaded onto actual hardware. 
 
 ## CHIP-8 Tips & Tricks
 
@@ -271,7 +300,7 @@ Here are a few features I'm still planning on adding...
 * Including C8 source files.
 * Importing 1-bit images into C8 files.
 * Saving screen shots and maybe videos to GIF.
-* Loading ROMs directly onto [COSMAC ELF hardware](http://www.cosmacelf.com/gallery/membership-cards/). 
+* Use OpenGL and add a CRT shader. 
 
 ## That's all folks!
 

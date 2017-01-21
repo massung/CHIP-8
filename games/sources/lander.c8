@@ -50,6 +50,9 @@ g               equ         10
 ;; checked and the thrust can be hidden if desired.
 
 
+                super
+                extended
+
 ;; Initial setup for the game.
 ;;
 start           high
@@ -123,7 +126,7 @@ next_level      ld          i, level
 
                 ; Convert the level # to BCD.
                 ld          i, scratch
-                ld          b, v0
+                bcd         v0
                 ld          v2, [i]
 
                 ; Display the level number.
@@ -162,13 +165,11 @@ draw_score      ld          i, score_text
                 ; Load the score.
                 ld          i, score
                 ld          v1, [i]
-                ld          v3, v0
-                ld          v4, v1
 
-                ; Convert the thousands and hundreds to BCD.
+                ; Perform a 16-bit BCD conversion.
                 ld          i, scratch
-                ld          b, v4
-                ld          v2, [i]
+                bcd         v1, v0
+                ld          v4, [i]
 
                 ; Display the number.
                 ld          f, v1
@@ -178,18 +179,10 @@ draw_score      ld          i, score_text
                 ld          f, v2
                 add         v0, 5
                 drw         v0, v1, 5
-
-                ; Convert the tens and ones to BCD.
-                ld          i, scratch
-                ld          b, v3
-                ld          v2, [i]
-
-                ; Display the number.
-                ld          f, v1
-                ld          v0, 76
-                ld          v1, 33
+                ld          f, v3
+                add         v0, 5
                 drw         v0, v1, 5
-                ld          f, v2
+                ld          f, v4
                 add         v0, 5
                 drw         v0, v1, 5
 
@@ -474,22 +467,17 @@ land            call        hide_lander
                 add         y, -1
                 call        draw_lander
 
-                ; Don't modify where the lander is.
-                ld          v1, x
-
                 ; Is the lander not on the platform?
-                sub         v1, plat_x   ; is x >= plat_x
-                se          vf, 1
+                add         plat_x, -1
+                sgt         x, plat_x
                 jp          crash
-                ld          v0, 4
-                sub         v1, v0       ; is x <= 4
-                se          vf, 0
+                add         plat_x, 6
+                slt         x, plat_x
                 jp          crash
 
                 ; Is VY too fast?
-                ld          v0, 14
-                sub         vy, v0      ; is vy <= v0?
-                se          vf, 0
+                ld          v0, 12
+                slt         vy, v0
                 jp          crash
 
                 ; Take the absolute value of VX.
@@ -505,9 +493,12 @@ land            call        hide_lander
 
                 ; Is VX too fast?
 skip_neg        ld          v0, 8
-                sub         v0, vx
-                se          vf, 1
+                slt         vx, v0
                 jp          crash
+
+                ; Add points just for landing.
+                ld          vf, 25
+                call        inc_score
 
                 ; Get more points from any left over fuel.
                 call        fuel_bonus
@@ -619,6 +610,10 @@ thrust_up       ld          v0, #C0
                 ; Add to the VY vector, but not too much.
                 add         vy, -2
 
+                ; Play a little bloop sound.
+                ld          v0, 1
+                ld          st, v0
+
                 ; Show the thrust.
                 jp          draw_thrust
 
@@ -692,17 +687,14 @@ draw_thrust     ld          i, lander_thrust
                 ret
 
 
-;; Add 1 point to the score.
+;; Add points to the score. VF=points to add.
 ;;
 inc_score       ld          i, score
                 ld          v1, [i]
-                add         v0, 1
 
-                ; Another hundred points to add?
-                se          v0, 100
-                jp          write_score
-                ld          v0, 0
-                add         v1, 1
+                ; Increment, add carry to v1.
+                add         v0, vf
+                add         v1, vf
 
                 ; Save the score back to memory.
 write_score     ld          [i], v1
@@ -797,6 +789,7 @@ fuel_bonus      sne         fuel, 64
 
                 ; Take away from the fuel and add score.
                 add         fuel, 1
+                ld          vf, 2
                 call        inc_score
 
                 ; Keep going until fuel is gone.
@@ -810,7 +803,7 @@ scratch         pad         16
 
 ;; The score is stored here in memory.
 ;;
-score           byte        0, 0
+score           word        0
 
 
 ;; This memory location contains the level number.
