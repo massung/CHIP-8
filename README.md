@@ -8,6 +8,10 @@ From the screen capture above you can see the disassembled program, register val
 
 CHIP-8 is written in [Go](https://golang.org/) and uses [SDL](https://www.libsdl.org/) for its rendering, input handling, and audio. It should easily run on Windows, OS X, and Linux. It - and the source code - are under the [ZLIB license](https://en.wikipedia.org/wiki/Zlib_License).
 
+## What's New?
+
+Getting the latest version? I recommend looking at the [CHANGELOG](CHANGELOG.md) file.
+
 ## Downloading
 
 You can download the latest pre-built release for your platform [here](https://github.com/massung/CHIP-8/releases).
