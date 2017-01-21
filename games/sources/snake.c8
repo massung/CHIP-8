@@ -236,7 +236,7 @@ draw_score
             ld          i, scratch
 
             ; Write the score as BCD, load it into v0..v2.
-            ld          b, score
+            bcd         score
             ld          v2, [i]
 
             ; Where to draw the score...
@@ -260,7 +260,7 @@ game_over
             ld          st, v0
 
             ; Stop the program.
-            exit
+done        jp          done
 
 start_position
 
