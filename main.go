@@ -421,7 +421,7 @@ func help() {
 	Debug.Log("F6 / F10    | Step over")
 	Debug.Log("F7 / F11    | Step into (SHIFT to step out)")
 	Debug.Log("F8          | Debug memory")
-	Debug.Log("F9          | Set breakpoint")
+	Debug.Log("F9          | Toggle breakpoint")
 }
 
 /// save launches a dialog allowing the user to save the current ROM.
