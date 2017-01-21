@@ -228,6 +228,7 @@ The assembler understands - beyond instructions - the following directives:
 | `VAR`        | Declare the label to represent a general purpose, V-register instead of the current address. Must be declared before being used.
 | `BREAK`      | Create a breakpoint. No instruction is written, but the emulator will break before the next instruction is executed. All text after the directive will be output to the log.
 | `ASSERT`     | Create a conditional breakpoint. The emulator will only break if `VF` is non-zero when the assert is hit. All text after the directive will be output to the log.
+| `ASCII`      | Write a text string - converted to 6-bit ASCII characters - to the ROM.
 | `BYTE`       | Write bytes to the ROM. This can take bytes literals or text strings.
 | `WORD`       | Write 2-byte words to the ROM in MSB first byte order.
 | `ALIGN`      | Align the ROM to a power of 2 byte boundary.
