@@ -1174,13 +1174,23 @@ func (vm *CHIP_8) drawSpriteEx(x, y uint) {
 /// Save registers v0..vx to I.
 ///
 func (vm *CHIP_8) saveRegs(x uint) {
-	copy(vm.Memory[vm.I:], vm.V[:x+1])
+	for i := uint(0);i <= x;i++ {
+		if vm.I+i < 0x1000 {
+			vm.Memory[vm.I+i] = vm.V[i]
+		}
+	}
 }
 
 /// Load registers v0..vx from I.
 ///
 func (vm *CHIP_8) loadRegs(x uint) {
-	copy(vm.V[:], vm.Memory[vm.I:vm.I+x+1])
+	for i := uint(0);i <= x;i++ {
+		if vm.I+i < 0x1000 {
+			vm.V[i] = vm.Memory[vm.I+i]
+		} else {
+			vm.V[i] = 0
+		}
+	}
 }
 
 /// Store v0..v7 in the HP-RPL user flags.
