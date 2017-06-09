@@ -1,6 +1,6 @@
 # CHIP-8 Emulator
 
-![CHIP-8 Assembler + Emulator](data/screencap.gif)
+![CHIP-8 Assembler + Emulator](https://raw.github.com/massung/CHIP-8/master/data/screencap.gif)
 
 CHIP-8 is an assembler, debugger, and emulator for the [COSMAC ELF][2] [CHIP-8][3] interpreter and its derivative: the Super CHIP-8, which ran on HP-48 calculators. Everything is emulated as well as possible: the video display refreshes at 60 Hz and sound is emulated as well.
 
