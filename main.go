@@ -90,7 +90,7 @@ var (
 
 	/// KeyMap of modern keyboard keys to CHIP-8 keys.
 	///
-	KeyMap = map[sdl.Scancode]uint {
+	KeyMap = map[sdl.Scancode]uint{
 		sdl.SCANCODE_X: 0x0,
 		sdl.SCANCODE_1: 0x1,
 		sdl.SCANCODE_2: 0x2,
@@ -176,7 +176,7 @@ func main() {
 
 	// set processor speed and refresh rate
 	clock := time.NewTicker(time.Millisecond)
-	video := time.NewTicker(time.Second/60)
+	video := time.NewTicker(time.Second / 60)
 
 	// notify that the main loop has started
 	Debug.Logln("Starting program; press 'H' for help")
@@ -209,7 +209,7 @@ func createWindow() {
 	var err error
 
 	// window attributes
-	flags := sdl.WINDOW_OPENGL | sdl.WINDOWPOS_CENTERED
+	flags := sdl.WINDOW_OPENGL
 
 	// create the window and renderer
 	Window, Renderer, err = sdl.CreateWindowAndRenderer(614, 380, uint32(flags))
@@ -255,11 +255,11 @@ func setIcon() {
 /// initAudio initializes an audio device for the CHIP-8 virtual machine.
 ///
 func initAudio() {
-	spec := &sdl.AudioSpec {
-		Freq: 3000,
-		Format: sdl.AUDIO_F32,
+	spec := &sdl.AudioSpec{
+		Freq:     3000,
+		Format:   sdl.AUDIO_F32,
 		Channels: 1,
-		Samples: 32,
+		Samples:  32,
 		Callback: sdl.AudioCallback(C.Tone),
 	}
 
@@ -283,8 +283,8 @@ func Tone(_ unsafe.Pointer, stream unsafe.Pointer, length C.int) {
 	// perform the conversion cast
 	buf := *(*[]C.float)(unsafe.Pointer(&reflect.SliceHeader{
 		Data: p,
-		Len: n,
-		Cap: n,
+		Len:  n,
+		Cap:  n,
 	}))
 
 	// get the current time
@@ -300,7 +300,7 @@ func Tone(_ unsafe.Pointer, stream unsafe.Pointer, length C.int) {
 	}
 
 	// fill in the data with a constant tone
-	for i := 0; i < n; i+=4 {
+	for i := 0; i < n; i += 4 {
 		buf[i] = C.float(Volume)
 	}
 }
@@ -386,7 +386,7 @@ func processEvents() bool {
 						}
 					}
 				case sdl.SCANCODE_F8:
-					if Paused  {
+					if Paused {
 						dumpMemory()
 					}
 				case sdl.SCANCODE_F9:
@@ -539,7 +539,7 @@ func dumpMemory() {
 		s[0] = fmt.Sprintf(" %04X -", n)
 
 		// fill in the 12-byte row
-		for i := 0;i < 12;i++ {
+		for i := 0; i < 12; i++ {
 			if n+i < 0x10000 {
 				s[i+1] = fmt.Sprintf("%02X", VM.Memory[n+i])
 			} else {
@@ -569,13 +569,13 @@ func updateScreen() {
 	w, h := VM.GetResolution()
 
 	// the pitch (in bits) is the width, calculate shift
-	shift := uint(6 + (w>>7))
+	shift := uint(6 + (w >> 7))
 
 	// draw all the pixels
-	for p := 0;p < w*h;p++ {
-		if VM.Video[p>>3] & (0x80 >> uint(p&7)) != 0 {
-			x := int(p&(w-1))
-			y := int(p>>shift)
+	for p := 0; p < w*h; p++ {
+		if VM.Video[p>>3]&(0x80>>uint(p&7)) != 0 {
+			x := int(p & (w - 1))
+			y := int(p >> shift)
 
 			// render the pixel to the screen
 			Renderer.DrawPoint(x, y)
@@ -655,13 +655,13 @@ func drawText(s string, x, y int) {
 ///
 func frame(x, y, w, h int) {
 	Renderer.SetDrawColor(0, 0, 0, 255)
-	Renderer.DrawLine(x, y, x + w, y)
-	Renderer.DrawLine(x, y, x, y + h)
+	Renderer.DrawLine(x, y, x+w, y)
+	Renderer.DrawLine(x, y, x, y+h)
 
 	// highlight
 	Renderer.SetDrawColor(95, 112, 120, 255)
-	Renderer.DrawLine(x + w, y, x + w, y + h)
-	Renderer.DrawLine(x, y + h, x + w, y + h)
+	Renderer.DrawLine(x+w, y, x+w, y+h)
+	Renderer.DrawLine(x, y+h, x+w, y+h)
 }
 
 /// drawLog shows the current log window.
@@ -671,9 +671,9 @@ func drawLog() {
 
 	for i, s := range Debug.Window(16) {
 		if len(s) >= 54 {
-			drawText(s[:52] + "...", x, y + i*10)
+			drawText(s[:52]+"...", x, y+i*10)
 		} else {
-			drawText(s, x, y + i*10)
+			drawText(s, x, y+i*10)
 		}
 	}
 }
@@ -685,12 +685,12 @@ func drawInstructions() {
 
 	// determine if the address window needs to move
 	if Address <= VM.PC-38 || Address >= VM.PC-2 || (Address&1) != (VM.PC&1) {
-		Address = VM.PC-2
+		Address = VM.PC - 2
 	}
 
 	// show the disassembled instructions
-	for i := 0;i < 38;i+=2 {
-		if Address + uint(i) == VM.PC {
+	for i := 0; i < 38; i += 2 {
+		if Address+uint(i) == VM.PC {
 			if Paused {
 				Renderer.SetDrawColor(176, 32, 57, 255)
 			} else {
@@ -699,21 +699,21 @@ func drawInstructions() {
 
 			// highlight the current instruction
 			Renderer.FillRect(&sdl.Rect{
-				X: int32(x-2),
-				Y: int32(y + i*5)-1,
+				X: int32(x - 2),
+				Y: int32(y+i*5) - 1,
 				W: 202,
 				H: 10,
 			})
 		}
 
-		drawText(VM.Disassemble(Address + uint(i)), x, y + i*5)
+		drawText(VM.Disassemble(Address+uint(i)), x, y+i*5)
 
 		// is there a breakpoint on this instruction?
-		if _, exists := VM.Breakpoints[int(Address) + i]; exists {
+		if _, exists := VM.Breakpoints[int(Address)+i]; exists {
 			Renderer.SetDrawColor(255, 0, 0, 255)
 			Renderer.DrawRect(&sdl.Rect{
-				X: int32(x-2),
-				Y: int32(y + i*5)-1,
+				X: int32(x - 2),
+				Y: int32(y+i*5) - 1,
 				W: 202,
 				H: 10,
 			})
@@ -726,8 +726,8 @@ func drawInstructions() {
 func drawRegisters() {
 	x, y := 406, 212
 
-	for i := 0;i < 16;i++ {
-		drawText(fmt.Sprintf("V%X = #%02X", i, VM.V[i]), x, y + i*10)
+	for i := 0; i < 16; i++ {
+		drawText(fmt.Sprintf("V%X = #%02X", i, VM.V[i]), x, y+i*10)
 	}
 
 	// shift over to next column
@@ -741,7 +741,7 @@ func drawRegisters() {
 	drawText(fmt.Sprintf("SP = #%02X", VM.SP), x, y+60)
 
 	// show the HP-RPL user flags
-	for i := 0;i < 8;i++ {
-		drawText(fmt.Sprintf("R%d = #%02X", i, VM.R[i]), x, y+80 + i*10)
+	for i := 0; i < 8; i++ {
+		drawText(fmt.Sprintf("R%d = #%02X", i, VM.R[i]), x, y+80+i*10)
 	}
 }
