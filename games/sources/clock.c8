@@ -5,6 +5,7 @@
 ;
 ; Have fun!
 ;
+    super
 
     ; minute and second
     ld      v4, 0
@@ -49,7 +50,7 @@ draw_clock
 
     ; load minute
     ld      i, time
-    ld      b, v4
+    bcd     v4
     ld      v2, [i]
 
     ; draw tens
@@ -66,7 +67,7 @@ draw_clock
 
     ; bcd second
     ld      i, time
-    ld      b, v5
+    bcd     v5
     ld      v2, [i]
 
     ; draw tens
