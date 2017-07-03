@@ -4,7 +4,7 @@ Want to know what's different between versions? Look no further...
 
 ## Version 1.2
 
-__Fixes__
+___Fixes___
 
 * Window creation flags error with latest SDL. Thanks to @renatorabelo for finding it!
 
