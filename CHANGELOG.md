@@ -2,6 +2,13 @@
 
 Want to know what's different between versions? Look no further...
 
+## Version 1.3
+
+___Fixes___
+
+* Updated the code to match the latest go-sdl2 release.
+* Touched up the comments to change `///` to `//`.
+
 ## Version 1.2
 
 ___Fixes___
