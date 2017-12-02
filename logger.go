@@ -25,20 +25,16 @@ import (
 	"strings"
 )
 
-/// Logger creates a new output log that can be viewed and scrolled.
-///
+// Logger creates a new output log that can be viewed and scrolled.
 type Logger struct {
-	/// buf contains each line of logged text.
-	///
+	// buf contains each line of logged text.
 	buf []string
 
-	/// pos is the current user read position within the log.
-	///
+	// pos is the current user read position within the log.
 	pos int
 }
 
-/// NewLog creates a new Logger.
-///
+// NewLog creates a new Logger.
 func NewLog() *Logger {
 	return &Logger{
 		buf: make([]string, 0, 100),
@@ -46,8 +42,7 @@ func NewLog() *Logger {
 	}
 }
 
-/// Log outputs a new line to the log.
-///
+// Log outputs a new line to the log.
 func (log *Logger) Log(s ...string) {
 	scroll := log.pos == len(log.buf)
 
@@ -59,8 +54,7 @@ func (log *Logger) Log(s ...string) {
 	}
 }
 
-/// Logln outline a new line to the log, with an empty line prefixed.
-///
+// Logln outline a new line to the log, with an empty line prefixed.
 func (log *Logger) Logln(s ...string) {
 	scroll := log.pos == len(log.buf)
 
@@ -72,8 +66,7 @@ func (log *Logger) Logln(s ...string) {
 	}
 }
 
-/// Window returns a slice of strings logged.
-///
+// Window returns a slice of strings logged.
 func (log *Logger) Window(n int) []string {
 	start := log.pos - n
 
@@ -82,27 +75,24 @@ func (log *Logger) Window(n int) []string {
 		start = 0
 	}
 
-	if start + n >= len(log.buf) {
+	if start+n >= len(log.buf) {
 		return log.buf[start:]
 	}
 
-	return log.buf[start:start+n]
+	return log.buf[start : start+n]
 }
 
-/// Scroll the log to the beginning.
-///
+// Scroll the log to the beginning.
 func (log *Logger) Home() {
 	log.pos = 0
 }
 
-/// Scroll the log to the end.
-///
+// Scroll the log to the end.
 func (log *Logger) End() {
 	log.pos = len(log.buf)
 }
 
-/// ScrollUp scrolls the log back one position.
-///
+// ScrollUp scrolls the log back one position.
 func (log *Logger) ScrollUp() {
 	log.pos -= 1
 
@@ -112,8 +102,7 @@ func (log *Logger) ScrollUp() {
 	}
 }
 
-/// ScrollDown scrolls the log forward one position.
-///
+// ScrollDown scrolls the log forward one position.
 func (log *Logger) ScrollDown(windowSize int) {
 	log.pos += 1
 

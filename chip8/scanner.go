@@ -24,16 +24,14 @@ package chip8
 import (
 	"fmt"
 	"os"
-	"strings"
 	"strconv"
+	"strings"
 )
 
-/// Type for scanned tokens.
-///
+// Type for scanned tokens.
 type tokenType uint
 
-/// Lexical assembly tokens.
-///
+// Lexical assembly tokens.
 const (
 	TOKEN_END tokenType = iota
 	TOKEN_CHAR
@@ -62,8 +60,7 @@ const (
 	TOKEN_ASCII
 )
 
-/// A parsed, lexical token.
-///
+// A parsed, lexical token.
 type token struct {
 	typ tokenType
 
@@ -71,8 +68,7 @@ type token struct {
 	val interface{}
 }
 
-/// CHIP-8 assembler token scanner.
-///
+// CHIP-8 assembler token scanner.
 type tokenScanner struct {
 	bytes []byte
 
@@ -80,14 +76,12 @@ type tokenScanner struct {
 	pos int
 }
 
-/// Helper function.
-///
+// Helper function.
 func (t token) debug() {
 	fmt.Fprintf(os.Stderr, "%#v\n", t)
 }
 
-/// Reads the next token from a scanner. Returns the token.
-///
+// Reads the next token from a scanner. Returns the token.
 func (s *tokenScanner) scanToken() token {
 	for len(s.bytes) > s.pos && s.bytes[s.pos] < 33 {
 		s.pos++
@@ -126,8 +120,7 @@ func (s *tokenScanner) scanToken() token {
 	return s.scanChar()
 }
 
-/// Scan a single character.
-///
+// Scan a single character.
 func (s *tokenScanner) scanChar() token {
 	i := s.pos
 
@@ -143,8 +136,7 @@ func (s *tokenScanner) scanChar() token {
 	return token{typ: TOKEN_CHAR, val: s.bytes[i]}
 }
 
-/// Scan to the end of the input and return.
-///
+// Scan to the end of the input and return.
 func (s *tokenScanner) scanToEnd() token {
 	text := string(s.bytes[s.pos:])
 
@@ -155,8 +147,7 @@ func (s *tokenScanner) scanToEnd() token {
 	return token{typ: TOKEN_END, val: strings.TrimSpace(text)}
 }
 
-/// Scan a comma-separated operand token.
-///
+// Scan a comma-separated operand token.
 func (s *tokenScanner) scanOperand() token {
 	s.pos += 1
 
@@ -171,8 +162,7 @@ func (s *tokenScanner) scanOperand() token {
 	return token{typ: TOKEN_OPERAND, val: t}
 }
 
-/// Scan a list of comma-separated tokens.
-///
+// Scan a list of comma-separated tokens.
 func (s *tokenScanner) scanOperands() []token {
 	tokens := make([]token, 0, 3)
 
@@ -196,8 +186,7 @@ func (s *tokenScanner) scanOperands() []token {
 	return tokens
 }
 
-/// Scan the effective address of a register (I).
-///
+// Scan the effective address of a register (I).
 func (s *tokenScanner) scanEffectiveAddress() token {
 	s.pos += 1
 
@@ -214,13 +203,12 @@ func (s *tokenScanner) scanEffectiveAddress() token {
 	return token{typ: TOKEN_EFFECTIVE_ADDRESS}
 }
 
-/// Scan an identifier: instruction, register, or label reference.
-///
+// Scan an identifier: instruction, register, or label reference.
 func (s *tokenScanner) scanIdentifier() token {
 	i := s.pos
 
 	// advance to the first non-identifier character
-	for ;s.pos < len(s.bytes);s.pos++ {
+	for ; s.pos < len(s.bytes); s.pos++ {
 		c := s.bytes[s.pos]
 
 		// validate identifier characters
@@ -307,8 +295,7 @@ func (s *tokenScanner) scanIdentifier() token {
 	}
 }
 
-/// Scan a decimal literal.
-///
+// Scan a decimal literal.
 func (s *tokenScanner) scanDecLit() token {
 	i := s.pos
 
@@ -318,7 +305,7 @@ func (s *tokenScanner) scanDecLit() token {
 	}
 
 	// find the first non-numeric character
-	for ;s.pos < len(s.bytes);s.pos += 1 {
+	for ; s.pos < len(s.bytes); s.pos += 1 {
 		if strings.IndexByte("0123456789", s.bytes[s.pos]) < 0 {
 			break
 		}
@@ -332,13 +319,12 @@ func (s *tokenScanner) scanDecLit() token {
 	panic(fmt.Errorf("illegal decimal value: %s", string(s.bytes[i:s.pos])))
 }
 
-/// Scan a hexadecimal literal.
-///
+// Scan a hexadecimal literal.
 func (s *tokenScanner) scanHexLit() token {
 	i := s.pos
 
 	// find the first non-hex character
-	for s.pos += 1;s.pos < len(s.bytes);s.pos += 1 {
+	for s.pos += 1; s.pos < len(s.bytes); s.pos += 1 {
 		if strings.IndexByte("0123456789ABCDEF", s.bytes[s.pos]) < 0 {
 			break
 		}
@@ -352,13 +338,12 @@ func (s *tokenScanner) scanHexLit() token {
 	panic(fmt.Errorf("illegal hex value: #%s", string(s.bytes[i:s.pos])))
 }
 
-/// Scan a binary literal.
-///
+// Scan a binary literal.
 func (s *tokenScanner) scanBinLit() token {
 	i := s.pos
 
 	// find the first non-binary character
-	for s.pos += 1;s.pos < len(s.bytes);s.pos += 1 {
+	for s.pos += 1; s.pos < len(s.bytes); s.pos += 1 {
 		if strings.IndexByte(".01", s.bytes[s.pos]) < 0 {
 			break
 		}
@@ -375,8 +360,7 @@ func (s *tokenScanner) scanBinLit() token {
 	panic(fmt.Errorf("illegal binary value: $%s", string(s.bytes[i:s.pos])))
 }
 
-/// Scan a quoted string.
-///
+// Scan a quoted string.
 func (s *tokenScanner) scanString(term byte) token {
 	s.pos += 1
 
@@ -391,5 +375,5 @@ func (s *tokenScanner) scanString(term byte) token {
 	// advance past the terminator
 	s.pos += 1
 
-	return token{typ: TOKEN_TEXT, val: string(s.bytes[i:s.pos-1])}
+	return token{typ: TOKEN_TEXT, val: string(s.bytes[i : s.pos-1])}
 }

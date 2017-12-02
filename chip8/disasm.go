@@ -23,10 +23,9 @@ package chip8
 
 import "fmt"
 
-/// Disassemble a CHIP-8 instruction.
-///
+// Disassemble a CHIP-8 instruction.
 func (vm *CHIP_8) Disassemble(i uint) string {
-	if int(i) >= len(vm.Memory) - 1 {
+	if int(i) >= len(vm.Memory)-1 {
 		return ""
 	}
 

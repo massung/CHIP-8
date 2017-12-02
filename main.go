@@ -42,54 +42,42 @@ import (
 )
 
 var (
-	/// VM is the CHIP-8 virtual machine.
-	///
+	// VM is the CHIP-8 virtual machine.
 	VM *chip8.CHIP_8
 
-	/// Window is the global SDL window.
-	///
+	// Window is the global SDL window.
 	Window *sdl.Window
 
-	/// Renderer is the global SDL renderer.
-	///
+	// Renderer is the global SDL renderer.
 	Renderer *sdl.Renderer
 
-	/// Screen is the global SDL render target for the VM's video memory.
-	///
+	// Screen is the global SDL render target for the VM's video memory.
 	Screen *sdl.Texture
 
-	/// Font is a fixed-width, bitmap font.
-	///
+	// Font is a fixed-width, bitmap font.
 	Font *sdl.Texture
 
-	/// Log is the output Logger.
-	///
+	// Debug is the output Logger.
 	Debug *Logger
 
-	/// ETI is true if ROM starts at 0x600 instead of 0x200.
-	///
+	// ETI is true if ROM starts at 0x600 instead of 0x200.
 	ETI bool
 
-	/// Paused is true if emulation is paused (single stepping).
-	///
+	// Paused is true if emulation is paused (single stepping).
 	Paused bool
 
-	/// File is the currently opened ROM/C8.
-	///
+	// File is the currently opened ROM/C8.
 	File string
 
-	/// Volume is the current tone volume level. When ST is non-zero
-	/// the volume will be 1.0. But, when ST hits 0 then the volume
-	/// needs to be ramped down to 0.0.
-	///
+	// Volume is the current tone volume level. When ST is non-zero
+	// the volume will be 1.0. But, when ST hits 0 then the volume
+	// needs to be ramped down to 0.0.
 	Volume float32
 
-	/// Current start address for disassembled instructions.
-	///
+	// Address is the current start address for disassembled instructions.
 	Address uint
 
-	/// KeyMap of modern keyboard keys to CHIP-8 keys.
-	///
+	// KeyMap of modern keyboard keys to CHIP-8 keys.
 	KeyMap = map[sdl.Scancode]uint{
 		sdl.SCANCODE_X: 0x0,
 		sdl.SCANCODE_1: 0x1,
@@ -109,8 +97,7 @@ var (
 		sdl.SCANCODE_V: 0xF,
 	}
 
-	/// Icon is the compressed bitmap image used for the title bar.
-	///
+	// Icon is the compressed bitmap image used for the title bar.
 	Icon = []byte{
 		0x1F, 0x8B, 0x08, 0x08, 0xCD, 0x5A, 0x79, 0x58,
 		0x00, 0x03, 0x63, 0x68, 0x69, 0x70, 0x2D, 0x38,
@@ -203,8 +190,7 @@ func main() {
 	}
 }
 
-/// createWindow creates the SDL window and renderer or panics.
-///
+// createWindow creates the SDL window and renderer or panics.
 func createWindow() {
 	var err error
 
@@ -234,8 +220,7 @@ func createWindow() {
 	}
 }
 
-/// setIcon unzips the Icon data and sets it on the window.
-///
+// setIcon unzips the Icon data and sets it on the window.
 func setIcon() {
 	if gz, err := gzip.NewReader(bytes.NewReader(Icon)); err == nil {
 		defer gz.Close()
@@ -245,15 +230,14 @@ func setIcon() {
 			rw := sdl.RWFromMem(unsafe.Pointer(&icon[0]), len(icon))
 
 			// read the bitmap data and create the icon surface
-			if surface, err := sdl.LoadBMP_RW(rw, 1); err == nil {
+			if surface, err := sdl.LoadBMPRW(rw, 1); err == nil {
 				Window.SetIcon(surface)
 			}
 		}
 	}
 }
 
-/// initAudio initializes an audio device for the CHIP-8 virtual machine.
-///
+// initAudio initializes an audio device for the CHIP-8 virtual machine.
 func initAudio() {
 	spec := &sdl.AudioSpec{
 		Freq:     3000,
@@ -305,8 +289,7 @@ func Tone(_ unsafe.Pointer, stream unsafe.Pointer, length C.int) {
 	}
 }
 
-/// loadFont loads the bitmap surface with font on it.
-///
+// loadFont loads the bitmap surface with font on it.
 func loadFont() {
 	var surface *sdl.Surface
 	var err error
@@ -327,77 +310,78 @@ func loadFont() {
 	}
 }
 
-/// processEvents from SDL and map keys to the CHIP-8 VM.
-///
+// processEvents from SDL and map keys to the CHIP-8 VM.
 func processEvents() bool {
 	for e := sdl.PollEvent(); e != nil; e = sdl.PollEvent() {
 		switch ev := e.(type) {
 		case *sdl.QuitEvent:
 			return false
 		case *sdl.DropEvent:
-			load(C.GoString((*C.char)(ev.File)))
-		case *sdl.KeyDownEvent:
-			if key, ok := KeyMap[ev.Keysym.Scancode]; ok {
-				VM.PressKey(key)
+			load(ev.File)
+		case *sdl.KeyboardEvent:
+			if ev.Type == sdl.KEYUP {
+				if key, ok := KeyMap[ev.Keysym.Scancode]; ev.Type == sdl.KEYUP && ok {
+					VM.ReleaseKey(key)
+				}
 			} else {
-				switch ev.Keysym.Scancode {
-				case sdl.SCANCODE_ESCAPE:
-					unload()
-				case sdl.SCANCODE_BACKSPACE:
-					reboot(ev.Keysym.Mod&sdl.KMOD_CTRL != 0)
-				case sdl.SCANCODE_UP, sdl.SCANCODE_PAGEUP:
-					Debug.ScrollUp()
-				case sdl.SCANCODE_DOWN, sdl.SCANCODE_PAGEDOWN:
-					Debug.ScrollDown(16)
-				case sdl.SCANCODE_HOME:
-					Debug.Home()
-				case sdl.SCANCODE_END:
-					Debug.End()
-				case sdl.SCANCODE_F2:
-					if File != "" {
-						load(File)
-					}
-				case sdl.SCANCODE_F3:
-					open()
-				case sdl.SCANCODE_F4:
-					save()
-				case sdl.SCANCODE_H:
-					help()
-				case sdl.SCANCODE_LEFTBRACKET:
-					VM.DecSpeed()
-				case sdl.SCANCODE_RIGHTBRACKET:
-					VM.IncSpeed()
-				case sdl.SCANCODE_F5, sdl.SCANCODE_SPACE:
-					Paused = !Paused
-				case sdl.SCANCODE_F6, sdl.SCANCODE_F10:
-					if Paused {
-						if VM.StepOverBreakpoint() {
-							Paused = false
-						} else {
-							VM.Step()
+				if key, ok := KeyMap[ev.Keysym.Scancode]; ok {
+					VM.PressKey(key)
+				} else {
+					switch ev.Keysym.Scancode {
+					case sdl.SCANCODE_ESCAPE:
+						unload()
+					case sdl.SCANCODE_BACKSPACE:
+						reboot(ev.Keysym.Mod&sdl.KMOD_CTRL != 0)
+					case sdl.SCANCODE_UP, sdl.SCANCODE_PAGEUP:
+						Debug.ScrollUp()
+					case sdl.SCANCODE_DOWN, sdl.SCANCODE_PAGEDOWN:
+						Debug.ScrollDown(16)
+					case sdl.SCANCODE_HOME:
+						Debug.Home()
+					case sdl.SCANCODE_END:
+						Debug.End()
+					case sdl.SCANCODE_F2:
+						if File != "" {
+							load(File)
 						}
-					}
-				case sdl.SCANCODE_F7, sdl.SCANCODE_F11:
-					if Paused {
-						if ev.Keysym.Mod&sdl.KMOD_SHIFT != 0 {
-							VM.StepOut()
-						} else {
-							VM.Step()
+					case sdl.SCANCODE_F3:
+						open()
+					case sdl.SCANCODE_F4:
+						save()
+					case sdl.SCANCODE_H:
+						help()
+					case sdl.SCANCODE_LEFTBRACKET:
+						VM.DecSpeed()
+					case sdl.SCANCODE_RIGHTBRACKET:
+						VM.IncSpeed()
+					case sdl.SCANCODE_F5, sdl.SCANCODE_SPACE:
+						Paused = !Paused
+					case sdl.SCANCODE_F6, sdl.SCANCODE_F10:
+						if Paused {
+							if VM.StepOverBreakpoint() {
+								Paused = false
+							} else {
+								VM.Step()
+							}
 						}
-					}
-				case sdl.SCANCODE_F8:
-					if Paused {
-						dumpMemory()
-					}
-				case sdl.SCANCODE_F9:
-					if Paused {
-						VM.ToggleBreakpoint()
+					case sdl.SCANCODE_F7, sdl.SCANCODE_F11:
+						if Paused {
+							if ev.Keysym.Mod&sdl.KMOD_SHIFT != 0 {
+								VM.StepOut()
+							} else {
+								VM.Step()
+							}
+						}
+					case sdl.SCANCODE_F8:
+						if Paused {
+							dumpMemory()
+						}
+					case sdl.SCANCODE_F9:
+						if Paused {
+							VM.ToggleBreakpoint()
+						}
 					}
 				}
-			}
-		case *sdl.KeyUpEvent:
-			if key, ok := KeyMap[ev.Keysym.Scancode]; ok {
-				VM.ReleaseKey(key)
 			}
 		}
 	}
@@ -405,8 +389,7 @@ func processEvents() bool {
 	return true
 }
 
-/// help logs all the keyboard commands.
-///
+// help logs all the keyboard commands.
 func help() {
 	Debug.Logln("Keys        | Description")
 	Debug.Log("------------+-------------------------------------")
@@ -424,8 +407,7 @@ func help() {
 	Debug.Log("F9          | Toggle breakpoint")
 }
 
-/// save launches a dialog allowing the user to save the current ROM.
-///
+// save launches a dialog allowing the user to save the current ROM.
 func save() error {
 	dlg := dialog.File().Title("Save CHIP-8 ROM")
 
@@ -452,8 +434,7 @@ func save() error {
 	}
 }
 
-/// open shows the open file dialog to load ROM/C8 file.
-///
+// open shows the open file dialog to load ROM/C8 file.
 func open() error {
 	dlg := dialog.File().Title("Load ROM / C8 Assembler")
 
@@ -470,8 +451,7 @@ func open() error {
 	}
 }
 
-/// load a ROM/C8 file.
-///
+// load a ROM/C8 file.
 func load(file string) error {
 	var err error
 
@@ -494,8 +474,7 @@ func load(file string) error {
 	return err
 }
 
-/// unload creates a new VM with the boot ROM.
-///
+// unload creates a new VM with the boot ROM.
 func unload() {
 	if VM != nil {
 		Debug.Logln("Unloading ROM")
@@ -511,8 +490,7 @@ func unload() {
 	File = ""
 }
 
-/// reboot the emulator, restarting the loaded virtual machine ROM.
-///
+// reboot the emulator, restarting the loaded virtual machine ROM.
 func reboot(breakOnReset bool) {
 	Paused = breakOnReset
 
@@ -520,8 +498,7 @@ func reboot(breakOnReset bool) {
 	VM.Reset()
 }
 
-/// dumpMemory shows the next 48 bytes at the I register.
-///
+// dumpMemory shows the next 48 bytes at the I register.
 func dumpMemory() {
 	Debug.Logln("Memory dump at I...")
 
@@ -551,8 +528,7 @@ func dumpMemory() {
 	}
 }
 
-/// updateScreen with the CHIP-8 video memory.
-///
+// updateScreen with the CHIP-8 video memory.
 func updateScreen() {
 	if err := Renderer.SetRenderTarget(Screen); err != nil {
 		panic(err)
@@ -574,8 +550,8 @@ func updateScreen() {
 	// draw all the pixels
 	for p := 0; p < w*h; p++ {
 		if VM.Video[p>>3]&(0x80>>uint(p&7)) != 0 {
-			x := int(p & (w - 1))
-			y := int(p >> shift)
+			x := int32(p & (w - 1))
+			y := int32(p >> shift)
 
 			// render the pixel to the screen
 			Renderer.DrawPoint(x, y)
@@ -586,8 +562,7 @@ func updateScreen() {
 	Renderer.SetRenderTarget(nil)
 }
 
-/// clear the renderer, redraw everything, and present.
-///
+// clear the renderer, redraw everything, and present.
 func redraw() {
 	updateScreen()
 
@@ -611,8 +586,7 @@ func redraw() {
 	Renderer.Present()
 }
 
-/// copyScreen to the render target at a given location.
-///
+// copyScreen to the render target at a given location.
 func drawScreen() {
 	vw, vh := VM.GetResolution()
 
@@ -626,8 +600,7 @@ func drawScreen() {
 	Renderer.Copy(Screen, &src, &sdl.Rect{X: 10, Y: 10, W: 384, H: 192})
 }
 
-/// drawText using the bitmap font a string at a given location.
-///
+// drawText using the bitmap font a string at a given location.
 func drawText(s string, x, y int) {
 	src := sdl.Rect{W: 5, H: 7}
 	dst := sdl.Rect{
@@ -651,9 +624,8 @@ func drawText(s string, x, y int) {
 	}
 }
 
-/// frame draws a highlighted panel to a rectangular area.
-///
-func frame(x, y, w, h int) {
+// frame draws a highlighted panel to a rectangular area.
+func frame(x, y, w, h int32) {
 	Renderer.SetDrawColor(0, 0, 0, 255)
 	Renderer.DrawLine(x, y, x+w, y)
 	Renderer.DrawLine(x, y, x, y+h)
@@ -664,8 +636,7 @@ func frame(x, y, w, h int) {
 	Renderer.DrawLine(x, y+h, x+w, y+h)
 }
 
-/// drawLog shows the current log window.
-///
+// drawLog shows the current log window.
 func drawLog() {
 	x, y := 12, 212
 
@@ -678,8 +649,7 @@ func drawLog() {
 	}
 }
 
-/// drawInstructions shows the disassembled code and current instruction.
-///
+// drawInstructions shows the disassembled code and current instruction.
 func drawInstructions() {
 	x, y := 406, 12
 
@@ -721,8 +691,7 @@ func drawInstructions() {
 	}
 }
 
-/// drawRegisters shows the current value of all virtual registers.
-///
+// drawRegisters shows the current value of all virtual registers.
 func drawRegisters() {
 	x, y := 406, 212
 
