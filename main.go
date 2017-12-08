@@ -21,17 +21,17 @@
 
 package main
 
-// void Tone(void *data, void *stream, int len);
 import "C"
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/binary"
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"math/rand"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"time"
 	"unsafe"
@@ -69,13 +69,14 @@ var (
 	// File is the currently opened ROM/C8.
 	File string
 
-	// Volume is the current tone volume level. When ST is non-zero
-	// the volume will be 1.0. But, when ST hits 0 then the volume
-	// needs to be ramped down to 0.0.
-	Volume float32
-
 	// Address is the current start address for disassembled instructions.
 	Address uint
+
+	// AudioDevice is the audio device for emitting sounds.
+	AudioDevice sdl.AudioDeviceID
+
+	// ObtainedSpec is the spec opened for the device.
+	ObtainedSpec = &sdl.AudioSpec{}
 
 	// KeyMap of modern keyboard keys to CHIP-8 keys.
 	KeyMap = map[sdl.Scancode]uint{
@@ -164,6 +165,7 @@ func main() {
 	// set processor speed and refresh rate
 	clock := time.NewTicker(time.Millisecond)
 	video := time.NewTicker(time.Second / 60)
+	sound := time.NewTicker(time.Second / 60)
 
 	// notify that the main loop has started
 	Debug.Logln("Starting program; press 'H' for help")
@@ -171,6 +173,8 @@ func main() {
 	// loop until window closed or user quit
 	for processEvents() {
 		select {
+		case <-sound.C:
+			updateSound()
 		case <-video.C:
 			redraw()
 		case <-clock.C:
@@ -239,53 +243,47 @@ func setIcon() {
 
 // initAudio initializes an audio device for the CHIP-8 virtual machine.
 func initAudio() {
-	spec := &sdl.AudioSpec{
-		Freq:     3000,
-		Format:   sdl.AUDIO_F32,
+	var err error
+
+	// the desired audio specification
+	desiredSpec := &sdl.AudioSpec{
+		Freq:     64 * 60,
+		Format:   sdl.AUDIO_F32LSB,
 		Channels: 1,
-		Samples:  32,
-		Callback: sdl.AudioCallback(C.Tone),
+		Samples:  64,
 	}
 
 	// open the device and start playing it
-	if err := sdl.OpenAudio(spec, nil); err != nil {
-		panic(err)
+	if sdl.GetNumAudioDevices(false) > 0 {
+		if AudioDevice, err = sdl.OpenAudioDevice("", false, desiredSpec, ObtainedSpec, sdl.AUDIO_ALLOW_ANY_CHANGE); err != nil {
+			panic(err)
+		}
+
+		sdl.PauseAudioDevice(AudioDevice, false)
 	}
-
-	// start playing the tone immediately
-	sdl.PauseAudio(false)
-
-	// no sound volume
-	Volume = 0.0
 }
 
-//export Tone
-func Tone(_ unsafe.Pointer, stream unsafe.Pointer, length C.int) {
-	p := uintptr(stream)
-	n := int(length)
+func updateSound() {
+	if AudioDevice != 0 {
+		sample := make([]byte, 4)
 
-	// perform the conversion cast
-	buf := *(*[]C.float)(unsafe.Pointer(&reflect.SliceHeader{
-		Data: p,
-		Len:  n,
-		Cap:  n,
-	}))
-
-	// get the current time
-	now := time.Now().UnixNano()
-
-	// ramp the volume to the desired end
-	if now < VM.ST {
-		Volume = 1.0
-	} else {
-		if Volume > 0.0 {
-			Volume -= 0.25
+		// set the sample sample bytes
+		if time.Now().UnixNano() < VM.ST {
+			binary.LittleEndian.PutUint32(sample, math.Float32bits(1.0))
 		}
-	}
 
-	// fill in the data with a constant tone
-	for i := 0; i < n; i += 4 {
-		buf[i] = C.float(Volume)
+		// N channels, each channel has S samples (4 bytes each)
+		n := int(ObtainedSpec.Channels) * int(ObtainedSpec.Samples) * 4
+		data := make([]byte, n)
+
+		// 128 samples per 1/60 of a second
+		for i := 0; i < n; i += 4 {
+			copy(data[i:], sample)
+		}
+
+		if err := sdl.QueueAudio(AudioDevice, data); err != nil {
+			println(err)
+		}
 	}
 }
 
@@ -416,22 +414,21 @@ func save() error {
 	dlg.Filter("ROM Files", "rom")
 
 	// pick a file to save to
-	if file, err := dlg.Save(); err != nil {
-		Debug.Logln(err.Error())
+	file, err := dlg.Save()
 
-		// don't try and write it
-		return err
+	if err != nil {
+		Debug.Logln(err.Error())
 	} else {
-		err := VM.SaveROM(file, false)
+		err = VM.SaveROM(file, false)
 
 		if err == nil {
 			Debug.Logln("ROM saved to", filepath.Base(file))
 		} else {
 			Debug.Logln(err.Error())
 		}
-
-		return err
 	}
+
+	return err
 }
 
 // open shows the open file dialog to load ROM/C8 file.
@@ -444,11 +441,13 @@ func open() error {
 	dlg.Filter("ROMs", "rom", "")
 
 	// try and load it
-	if file, err := dlg.Load(); err == nil {
+	file, err := dlg.Load()
+
+	if err == nil {
 		return load(file)
-	} else {
-		return err
 	}
+
+	return err
 }
 
 // load a ROM/C8 file.
