@@ -76,7 +76,7 @@ var (
 	AudioDevice sdl.AudioDeviceID
 
 	// ObtainedSpec is the spec opened for the device.
-	ObtainedSpec = &sdl.AudioSpec{}
+	ObtainedSpec *sdl.AudioSpec
 
 	// KeyMap of modern keyboard keys to CHIP-8 keys.
 	KeyMap = map[sdl.Scancode]uint{
@@ -252,6 +252,8 @@ func initAudio() {
 		Channels: 1,
 		Samples:  64,
 	}
+
+	ObtainedSpec = &sdl.AudioSpec{}
 
 	// open the device and start playing it
 	if sdl.GetNumAudioDevices(false) > 0 {
