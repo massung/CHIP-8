@@ -1,4 +1,4 @@
-module github.com/massung/CHIP-8/main
+module github.com/massung/CHIP-8/emulator
 
 go 1.15
 
